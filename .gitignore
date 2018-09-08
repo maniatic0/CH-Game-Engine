@@ -33,5 +33,6 @@
 
 # Builds
 builds/
+old/
 CMakeFiles/
 CMakeCache.txt
