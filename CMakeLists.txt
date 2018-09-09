@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.7.2)
 
 if ( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
     message( FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt." )
@@ -67,15 +67,16 @@ link_directories(${GLFW_LIB_LOCATION})
 
 # GLM 
 set(GLM_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLM)
-
-set(GLM_INCLUDE_LOCATION ${GLM_LOCATION}/src/glm-lib/glm)
+set(GLM_INCLUDE_PRE_LOCATION ${GLM_LOCATION}/src/glm-lib/glm)
+set(GLM_INCLUDE_LOCATION ${GLM_LOCATION}/include)
 ExternalProject_Add (
 	  glm-lib
 	  PREFIX ${GLM_LOCATION}
       GIT_REPOSITORY "https://github.com/g-truc/glm.git"
       GIT_TAG "master"
       UPDATE_COMMAND ""
-      BUILD_COMMAND ""
+      BUILD_COMMAND 
+      ${CMAKE_COMMAND} -E copy_directory ${GLM_INCLUDE_PRE_LOCATION} ${GLM_INCLUDE_LOCATION}/glm
       INSTALL_COMMAND ""
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
       CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
@@ -87,6 +88,12 @@ ExternalProject_Add (
 include_directories(${GLM_INCLUDE_LOCATION})
 
 project (CH_ENGINE)
+
+# Vulkan
+find_package(Vulkan REQUIRED)
+include_directories(${Vulkan_INCLUDE_DIRS})
+
+
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -103,4 +110,4 @@ add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
 target_link_libraries(CH_ENGINE ${GLFW_LIB_LOCATION}/glfw3dll.lib)	
-find_package(Vulkan REQUIRED)
+target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})  
