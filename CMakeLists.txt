@@ -25,7 +25,7 @@ if(NOT USE_64)
    set(GLFW_LIB_NAME lib)
    set(GLFW_LIB_SUFFIX "")
 endif()
-message(STATUS "USE_64=${USE_64}\nGLFW_LIB_SUFFIX=${GLFW_LIB_SUFFIX}")
+message(STATUS "USE_64=${USE_64} GLFW_LIB_SUFFIX=${GLFW_LIB_SUFFIX}")
 
 set(GLFW_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLFW)
 
@@ -68,22 +68,23 @@ link_directories(${GLFW_LIB_LOCATION})
 # GLM 
 set(GLM_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLM)
 
-set(GLM_INCLUDE_LOCATION ${GLM_LOCATION}/include)
-set(GLM_LIB_LOCATION ${GLM_LOCATION}/lib)
+set(GLM_INCLUDE_LOCATION ${GLM_LOCATION}/src/glm-lib/glm)
 ExternalProject_Add (
 	  glm-lib
-	  PREFIX ${GLFW_LOCATION}
+	  PREFIX ${GLM_LOCATION}
       GIT_REPOSITORY "https://github.com/g-truc/glm.git"
       GIT_TAG "master"
       UPDATE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
       CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
       CMAKE_ARGS 
-    	-DCMAKE_INSTALL_PREFIX=${GLFW_LOCATION}
-      	-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    	-DCMAKE_INSTALL_PREFIX=${GLM_LOCATION}
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       )
 
-
+include_directories(${GLM_INCLUDE_LOCATION})
 
 project (CH_ENGINE)
 
@@ -98,7 +99,8 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_executable(CH_ENGINE src/main.cpp)
 add_dependencies(CH_ENGINE glfw-lib)
+add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
-target_link_libraries(CH_ENGINE ${GLFW_LIB_LOCATION}/glfw3dll)	
+target_link_libraries(CH_ENGINE ${GLFW_LIB_LOCATION}/glfw3dll.lib)	
 find_package(Vulkan REQUIRED)
