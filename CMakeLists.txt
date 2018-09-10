@@ -78,12 +78,12 @@ ExternalProject_Add (
 
 # See: https://stackoverflow.com/questions/41384447/clean-copied-files-from-external-project
 # See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
-#ExternalProject_Add_Step(
-#    glfw-lib glfw-copy2bin
-#    COMMENT "Copying GLFW dll to bin folder"
-#    COMMAND ${CMAKE_COMMAND} -E copy_directory  ${GLFW_BIN_LOCATION} ${GLFW_DLL_FINAL_LOCATION}
-#    DEPENDEES glfw-lib
-#)
+ExternalProject_Add_Step(
+    glfw-lib glfw-copy2bin
+    COMMENT "Copying GLFW dll to bin folder"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory  ${GLFW_BIN_LOCATION} ${GLFW_DLL_FINAL_LOCATION}$<$<C_COMPILER_ID:Clang>:/Clang>
+    DEPENDEES glfw-lib
+)
 
 include_directories(${GLFW_INCLUDE_LOCATION})
 link_directories(${GLFW_LIB_LOCATION})
