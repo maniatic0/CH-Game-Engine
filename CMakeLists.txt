@@ -103,6 +103,7 @@ ExternalProject_Add (
 	  PREFIX ${GLM_LOCATION}
       GIT_REPOSITORY "https://github.com/g-truc/glm.git"
       GIT_TAG "master"
+      CONFIGURE_COMMAND ""
       BUILD_COMMAND ""
       INSTALL_COMMAND ""
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
@@ -118,7 +119,7 @@ ExternalProject_Add_Step(
     glm-lib glm-copy2include
     COMMENT "Copying GLM to include folder"
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${GLM_INCLUDE_PRE_LOCATION} ${GLM_INCLUDE_LOCATION}/glm
-    DEPENDEES glm-lib
+    DEPENDEES download
 )
 
 set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
