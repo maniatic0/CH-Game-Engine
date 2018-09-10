@@ -6,6 +6,7 @@ if ( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
     message( FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt." )
 endif()
 
+
 # Detect 64bit Build
 # See: https://stackoverflow.com/questions/39258250/how-to-detect-if-64-bit-msvc-with-cmake
 set(USE_64 ON)
@@ -25,6 +26,13 @@ set(INSTALL_DIRECTORY ${CMAKE_BINARY_DIR}/install)
 
 # External Libraries
 set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
+
+# IMPORTANT: VS doesn't care about this
+# See: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake?rq=1
+message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}")
+set(MY_TEST_MODE $<$<CONFIG:Release>:Release_MODE>) #$<$<CONFIG:Debug>:DEBUG_MODE>/$<$<C_COMPILER_ID:Clang>:Clang>
+message("MY_TEST_MODE=${MY_TEST_MODE} $<TARGET_FILE_DIR:myBinary>/myTest.txt")
+
 
 # GLFW
 set(GLFW_LIB_NAME lib64)
@@ -52,7 +60,6 @@ ExternalProject_Add (
 	  PREFIX ${GLFW_LOCATION}
       GIT_REPOSITORY "https://github.com/glfw/glfw.git"
       GIT_TAG "master"
-      UPDATE_COMMAND ""
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
       CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
       INSTALL_COMMAND # See https://stackoverflow.com/questions/16842218/how-to-use-cmake-externalproject-add-or-alternatives-in-a-cross-platform-way
@@ -60,7 +67,7 @@ ExternalProject_Add (
         --build .
         --target install
       CMAKE_ARGS 
-    	-DCMAKE_INSTALL_PREFIX=${GLFW_LOCATION}
+    	  -DCMAKE_INSTALL_PREFIX=${GLFW_LOCATION}
       	-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       	-DLIB_SUFFIX=${GLFW_LIB_SUFFIX} 
       	-DBUILD_SHARED_LIBS=ON 
