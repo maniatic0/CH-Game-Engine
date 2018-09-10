@@ -79,7 +79,8 @@ ExternalProject_Add (
       )
 
 include_directories(${GLFW_INCLUDE_LOCATION})
-link_directories(${GLFW_LIB_LOCATION})
+link_directories($<TARGET_LINKER_FILE_DIR:CH_ENGINE>)
+
 
 
 # GLM 
@@ -127,9 +128,8 @@ add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
-target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/glfw3dll.lib)	
+target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/${CMAKE_SHARED_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
-
 
 install(TARGETS CH_ENGINE
             RUNTIME DESTINATION ${INSTALL_DIRECTORY}/bin
@@ -137,5 +137,5 @@ install(TARGETS CH_ENGINE
             ARCHIVE DESTINATION ${INSTALL_DIRECTORY}/lib/static)
 
 install(FILES 
-  $<TARGET_FILE_DIR:CH_ENGINE>/glfw3.dll
+  $<TARGET_FILE_DIR:CH_ENGINE>/${CMAKE_SHARED_MODULE_PREFIX}glfw3${CMAKE_SHARED_LIBRARY_SUFFIX}
   DESTINATION ${INSTALL_DIRECTORY}/bin)
