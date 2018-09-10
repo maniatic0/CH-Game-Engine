@@ -19,7 +19,7 @@ endif()
 
 # Config
 project (CH_ENGINE)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/static)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(INSTALL_DIRECTORY ${CMAKE_BINARY_DIR}/install)
@@ -127,7 +127,7 @@ add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
-target_link_libraries(CH_ENGINE ${GLFW_LIB_LOCATION}/glfw3dll.lib)	
+target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/glfw3dll.lib)	
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
 
 install(TARGETS CH_ENGINE
