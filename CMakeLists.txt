@@ -130,11 +130,12 @@ add_dependencies(CH_ENGINE glm-lib)
 target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/glfw3dll.lib)	
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
 
+
 install(TARGETS CH_ENGINE
             RUNTIME DESTINATION ${INSTALL_DIRECTORY}/bin
             LIBRARY DESTINATION ${INSTALL_DIRECTORY}/lib
             ARCHIVE DESTINATION ${INSTALL_DIRECTORY}/lib/static)
 
 install(FILES 
-  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/glfw3.dll
+  $<TARGET_FILE_DIR:CH_ENGINE>/glfw3.dll
   DESTINATION ${INSTALL_DIRECTORY}/bin)
