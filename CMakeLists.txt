@@ -24,14 +24,15 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(INSTALL_DIRECTORY ${CMAKE_BINARY_DIR}/install)
 
+# See: http://www.brianlheim.com/2018/04/09/cmake-cheat-sheet.html
+set(CMAKE_CXX_STANDARD 17)
+
 # External Libraries
 set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 
 # IMPORTANT: VS doesn't care about this
 # See: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake?rq=1
 message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} CONFIG=${CONFIG}")
-set(MY_TEST_MODE $<$<CONFIG:Release>:Release_MODE>) #$<$<CONFIG:Debug>:DEBUG_MODE>/$<$<C_COMPILER_ID:Clang>:Clang>
-message("MY_TEST_MODE=${MY_TEST_MODE} $<TARGET_FILE_DIR:myBinary>/myTest.txt")
 
 
 # GLFW
@@ -67,10 +68,11 @@ ExternalProject_Add (
         --target install
       CMAKE_ARGS 
     	  -DCMAKE_INSTALL_PREFIX=${GLFW_LOCATION}
-        -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/static
+        -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
         -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
       	-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
       	-DLIB_SUFFIX=${GLFW_LIB_SUFFIX} 
       	-DBUILD_SHARED_LIBS=ON 
       	-DGLFW_BUILD_TESTS=OFF 
@@ -80,8 +82,6 @@ ExternalProject_Add (
 
 include_directories(${GLFW_INCLUDE_LOCATION})
 link_directories($<TARGET_LINKER_FILE_DIR:CH_ENGINE>)
-
-
 
 # GLM 
 set(GLM_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLM)
@@ -128,7 +128,7 @@ add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
-target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/${CMAKE_SHARED_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
+target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
 
 install(TARGETS CH_ENGINE
