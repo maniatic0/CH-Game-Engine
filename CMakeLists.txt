@@ -29,7 +29,7 @@ set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 
 # IMPORTANT: VS doesn't care about this
 # See: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake?rq=1
-message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}")
+message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} CONFIG=${CONFIG}")
 set(MY_TEST_MODE $<$<CONFIG:Release>:Release_MODE>) #$<$<CONFIG:Debug>:DEBUG_MODE>/$<$<C_COMPILER_ID:Clang>:Clang>
 message("MY_TEST_MODE=${MY_TEST_MODE} $<TARGET_FILE_DIR:myBinary>/myTest.txt")
 
@@ -50,6 +50,7 @@ set(GLFW_LIB_LOCATION ${GLFW_LOCATION}/${GLFW_LIB_NAME})
 set(GLFW_BIN_LOCATION ${GLFW_LOCATION}/bin)
 set(GLFW_DLL_FINAL_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/bin)
 
+
 # See> https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 # See: https://stackoverflow.com/questions/38006584/how-to-clone-and-integrate-external-from-git-cmake-project-into-local-one
 # See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
@@ -68,6 +69,9 @@ ExternalProject_Add (
         --target install
       CMAKE_ARGS 
     	  -DCMAKE_INSTALL_PREFIX=${GLFW_LOCATION}
+        -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
+        -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
       	-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       	-DLIB_SUFFIX=${GLFW_LIB_SUFFIX} 
       	-DBUILD_SHARED_LIBS=ON 
@@ -75,15 +79,6 @@ ExternalProject_Add (
       	-DGLFW_BUILD_EXAMPLES=OFF 
       	-DGLFW_BUILD_DOCS=ON
       )
-
-# See: https://stackoverflow.com/questions/41384447/clean-copied-files-from-external-project
-# See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
-ExternalProject_Add_Step(
-    glfw-lib glfw-copy2bin
-    COMMENT "Copying GLFW dll to bin folder"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory  ${GLFW_BIN_LOCATION} ${GLFW_DLL_FINAL_LOCATION}$<$<C_COMPILER_ID:Clang>:/Clang>
-    DEPENDEES glfw-lib
-)
 
 include_directories(${GLFW_INCLUDE_LOCATION})
 link_directories(${GLFW_LIB_LOCATION})
@@ -143,5 +138,3 @@ install(TARGETS CH_ENGINE
             RUNTIME DESTINATION ${INSTALL_DIRECTORY}/bin
             LIBRARY DESTINATION ${INSTALL_DIRECTORY}/lib
             ARCHIVE DESTINATION ${INSTALL_DIRECTORY}/lib/static)
-
-install(FILES  ${GLFW_BIN_LOCATION}/glfw3.dll DESTINATION ${INSTALL_DIRECTORY}/bin)
