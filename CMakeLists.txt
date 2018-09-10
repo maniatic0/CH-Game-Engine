@@ -119,6 +119,7 @@ ExternalProject_Add_Step(
     glm-lib glm-copy2include
     COMMENT "Copying GLM to include folder"
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${GLM_INCLUDE_PRE_LOCATION} ${GLM_INCLUDE_LOCATION}/glm
+    # See: https://stackoverflow.com/questions/41089289/externalproject-add-step-error-add-custom-command-given-append-option-with-outpu
     DEPENDEES download
 )
 
