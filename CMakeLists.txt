@@ -15,6 +15,14 @@ if(NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)"
     set(USE_64 OFF)
 endif()
 
+
+# Config
+project (CH_ENGINE)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(INSTALL_DIRECTORY ${CMAKE_BINARY_DIR}/install)
+
 # External Libraries
 set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 
@@ -32,6 +40,7 @@ set(GLFW_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLFW)
 set(GLFW_INCLUDE_LOCATION ${GLFW_LOCATION}/include)
 set(GLFW_LIB_LOCATION ${GLFW_LOCATION}/${GLFW_LIB_NAME})
 set(GLFW_BIN_LOCATION ${GLFW_LOCATION}/bin)
+set(GLFW_DLL_FINAL_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/bin)
 
 # See> https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
 # See: https://stackoverflow.com/questions/38006584/how-to-clone-and-integrate-external-from-git-cmake-project-into-local-one
@@ -57,9 +66,17 @@ ExternalProject_Add (
       	-DBUILD_SHARED_LIBS=ON 
       	-DGLFW_BUILD_TESTS=OFF 
       	-DGLFW_BUILD_EXAMPLES=OFF 
-      	-DGLFW_BUILD_DOCS=OFF
+      	-DGLFW_BUILD_DOCS=ON
       )
 
+# See: https://stackoverflow.com/questions/41384447/clean-copied-files-from-external-project
+# See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+#ExternalProject_Add_Step(
+#    glfw-lib glfw-copy2bin
+#    COMMENT "Copying GLFW dll to bin folder"
+#    COMMAND ${CMAKE_COMMAND} -E copy_directory  ${GLFW_BIN_LOCATION} ${GLFW_DLL_FINAL_LOCATION}
+#    DEPENDEES glfw-lib
+#)
 
 include_directories(${GLFW_INCLUDE_LOCATION})
 link_directories(${GLFW_LIB_LOCATION})
@@ -75,8 +92,7 @@ ExternalProject_Add (
       GIT_REPOSITORY "https://github.com/g-truc/glm.git"
       GIT_TAG "master"
       UPDATE_COMMAND ""
-      BUILD_COMMAND 
-      ${CMAKE_COMMAND} -E copy_directory ${GLM_INCLUDE_PRE_LOCATION} ${GLM_INCLUDE_LOCATION}/glm
+      BUILD_COMMAND ""
       INSTALL_COMMAND ""
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
       CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
@@ -85,9 +101,20 @@ ExternalProject_Add (
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       )
 
-include_directories(${GLM_INCLUDE_LOCATION})
+# See: https://stackoverflow.com/questions/41384447/clean-copied-files-from-external-project
+# See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+ExternalProject_Add_Step(
+    glm-lib glm-copy2include
+    COMMENT "Copying GLM to include folder"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${GLM_INCLUDE_PRE_LOCATION} ${GLM_INCLUDE_LOCATION}/glm
+    DEPENDEES glm-lib
+)
 
-project (CH_ENGINE)
+set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    "${GLM_INCLUDE_LOCATION}"
+)
+
+include_directories(${GLM_INCLUDE_LOCATION})
 
 # Vulkan
 find_package(Vulkan REQUIRED)
@@ -95,14 +122,6 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 
 
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_executable(CH_ENGINE src/main.cpp)
 add_dependencies(CH_ENGINE glfw-lib)
@@ -110,4 +129,12 @@ add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
 target_link_libraries(CH_ENGINE ${GLFW_LIB_LOCATION}/glfw3dll.lib)	
-target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})  
+target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
+
+
+install(TARGETS CH_ENGINE
+            RUNTIME DESTINATION ${INSTALL_DIRECTORY}/bin
+            LIBRARY DESTINATION ${INSTALL_DIRECTORY}/lib
+            ARCHIVE DESTINATION ${INSTALL_DIRECTORY}/lib/static)
+
+install(FILES  ${GLFW_BIN_LOCATION}/glfw3.dll DESTINATION ${INSTALL_DIRECTORY}/bin)
