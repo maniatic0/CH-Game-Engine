@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-cmake_minimum_required (VERSION 3.7.2)
+cmake_minimum_required (VERSION 3.9.6)
 
 if ( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
     message( FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt." )
@@ -14,6 +14,16 @@ if(NOT "${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)"
 	AND "${CMAKE_SIZEOF_VOID_P}" STREQUAL "4" 
 	AND NOT CMAKE_CL_64)
     set(USE_64 OFF)
+endif()
+
+
+# Detect Multi Config Generator 
+# See: https://gitlab.kitware.com/cmake/cmake/issues/17645
+get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if (isMultiConfig)
+    set(propagate_build_type --config $<CONFIG> -DCMAKE_BUILD_TYPE=$<CONFIG>)
+else()
+    set(propagate_build_type -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
 endif()
 
 
@@ -71,7 +81,8 @@ ExternalProject_Add (
         -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
         -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-      	-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      	#-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        ${propagate_build_type}
         -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
       	-DLIB_SUFFIX=${GLFW_LIB_SUFFIX} 
       	-DBUILD_SHARED_LIBS=ON 
@@ -128,7 +139,7 @@ add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
-target_link_libraries(CH_ENGINE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
+target_link_libraries(CH_ENGINE ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}$<$<BOOL:isMultiConfig>:/$<CONFIG>>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
 
 install(TARGETS CH_ENGINE
