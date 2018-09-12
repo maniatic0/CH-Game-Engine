@@ -32,7 +32,11 @@
 *.app
 
 # Builds
+build/
 builds/
 old/
 CMakeFiles/
 CMakeCache.txt
+
+# VS Code
+.vscode/
