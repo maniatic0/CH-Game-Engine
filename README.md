@@ -9,15 +9,20 @@ Game Engine Project based on Game Engine Architecture book by Jason Gregory
 * Vulkan
 
 # Windows Build
-Requires https://github.com/plasmacel/llvm-vs2017-integration to use Clang 6.0.0
+Requires https://github.com/plasmacel/llvm-vs2017-integration to use Clang 6.0.0.
+
 
 To start CMake:
-mkdir build\ && cd build\ && cmake ..\ -G "Visual Studio 15 2017 Win64" -T LLVM-vs2017
-or:
-cmake -H. -Bbuilds/ -T"LLVM-vs2017" -G"Visual Studio 15 2017 Win64"
+```Batchfile
+cmake -H. -DCMAKE_BUILD_TYPE=%1 -Bbuild/ -T"LLVM-vs2017" -G "Visual Studio 15 2017 Win64"
+```
 
 To build use on "build" directory:
-cmake --build builds\
+```Batchfile
+cmake --build builds\ --target install --config %1
+```
+
+Where %1 is either Debug or Release
 
 # VS Code Help
 Use this command to get all the clang/gcc compiler include headers folders
