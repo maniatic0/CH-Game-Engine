@@ -18,3 +18,10 @@ cmake -H. -Bbuilds/ -T"LLVM-vs2017" -G"Visual Studio 15 2017 Win64"
 
 To build use on "build" directory:
 cmake --build builds\
+
+# VS Code Help
+Use this command to get all the clang/gcc compiler include headers folders
+```Batchfile
+clang -v -E -x c++ -
+gcc -v -E -x c++ -
+```
