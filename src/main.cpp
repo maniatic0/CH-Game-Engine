@@ -6,8 +6,14 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 
+// GLFW Config
+const int WIDTH = 800;
+const int HEIGHT = 600;
+
+// TODO: Create DebugUtils Wrapper Class
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
     const VkAllocationCallbacks *pAllocator,
@@ -31,6 +37,21 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance,
   }
 }
 
+const std::vector<const char *> validationLayers = {
+    "VK_LAYER_LUNARG_standard_validation"};
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else   // !NDEBUG
+const bool enableValidationLayers = true;
+#endif  // NDEBUG
+
+struct QueueFamilyIndices {
+  int graphicsFamily = -1;
+
+  bool isComplete() { return graphicsFamily >= 0; }
+};
+
 class HelloTriangleApplication {
  public:
   void run() {
@@ -43,21 +64,11 @@ class HelloTriangleApplication {
  private:
   // GLFW Config
   GLFWwindow *window;
-  const int WIDTH = 800;
-  const int HEIGHT = 600;
 
   // Vulkan Config
   VkInstance instance;
   VkDebugUtilsMessengerEXT callback;
-
-  const std::vector<const char *> validationLayers = {
-      "VK_LAYER_LUNARG_standard_validation"};
-
-#ifdef NDEBUG
-  const bool enableValidationLayers = false;
-#else   // !NDEBUG
-  const bool enableValidationLayers = true;
-#endif  // NDEBUG
+  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
   void initWindow() {
 #ifndef NDEBUG
@@ -269,8 +280,150 @@ class HelloTriangleApplication {
 #endif  // !NDEBUG
     createInstance();
     setupDebugCallback();
+    pickPhysicalDevice();
 #ifndef NDEBUG
     std::cout << "Vulkan Init Successful" << std::endl;
+#endif  // !NDEBUG
+  }
+
+  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                             nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                             queueFamilies.data());
+
+    int i = 0;
+    for (const auto &queueFamily : queueFamilies) {
+      if (queueFamily.queueCount > 0 &&
+          queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        indices.graphicsFamily = i;
+      }
+
+      if (indices.isComplete()) {
+        break;
+      }
+
+      i++;
+    }
+
+    return indices;
+  }
+
+  // Only Vulkan Support Required
+  bool isDeviceSuitableOnlyVulkan(VkPhysicalDevice device) {
+    QueueFamilyIndices indices = findQueueFamilies(device);
+    return indices.isComplete();
+  }
+
+  // Only Vulkan Support, Dedicated GPU and Geometry Shaders Required
+  bool isDeviceSuitable(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    QueueFamilyIndices indices = findQueueFamilies(device);
+
+    return deviceProperties.deviceType ==
+               VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
+           deviceFeatures.geometryShader && indices.isComplete();
+  }
+
+  // Better Rating Way
+  int rateDeviceSuitability(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    QueueFamilyIndices indices = findQueueFamilies(device);
+
+    int score = 0;
+
+    if (!indices.isComplete()) {
+#ifndef NDEBUG
+      std::cout << "\t" << deviceProperties.deviceName << " score: " << 0
+                << std::endl;
+#endif  // !NDEBUG
+      return 0;
+    }
+
+    // Discrete GPUs have a significant performance advantage
+    if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+      score += 1000;
+    }
+
+    // Maximum possible size of textures affects graphics quality
+    score += deviceProperties.limits.maxImageDimension2D;
+
+    // Application can't function without geometry shaders
+    if (!deviceFeatures.geometryShader) {
+#ifndef NDEBUG
+      std::cout << "\t" << deviceProperties.deviceName << " score: " << 0
+                << std::endl;
+#endif  // !NDEBUG
+      return 0;
+    }
+
+#ifndef NDEBUG
+    std::cout << "\t" << deviceProperties.deviceName << " score: " << score
+              << std::endl;
+#endif  // !NDEBUG
+
+    return score;
+  }
+
+  void pickPhysicalDevice() {
+#ifndef NDEBUG
+    std::cout << "Vulkan Physical Device Selection Started" << std::endl;
+#endif  // !NDEBUG
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+      throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+#ifndef NDEBUG
+    std::cout << "Rating Vulkan Physical Devices: " << std::endl;
+#endif  // !NDEBUG
+
+    /* Only bool selection
+    for (const auto &device : devices) {
+      if (isDeviceSuitableOnlyVulkan(device)) {
+        physicalDevice = device;
+        break;
+      }
+    }
+
+    if (physicalDevice == VK_NULL_HANDLE) {
+      throw std::runtime_error("failed to find a suitable GPU!");
+    } */
+
+    // Use an ordered map to automatically sort candidates by increasing score
+    std::multimap<int, VkPhysicalDevice> candidates;
+
+    for (const auto &device : devices) {
+      int score = rateDeviceSuitability(device);
+      candidates.insert(std::make_pair(score, device));
+    }
+
+    // Check if the best candidate is suitable at all
+    if (candidates.rbegin()->first > 0) {
+      physicalDevice = candidates.rbegin()->second;
+    } else {
+      throw std::runtime_error("failed to find a suitable GPU!");
+    }
+
+#ifndef NDEBUG
+    std::cout << "Vulkan Physical Device Selection Successful" << std::endl;
 #endif  // !NDEBUG
   }
 
@@ -302,7 +455,6 @@ class HelloTriangleApplication {
 };
 
 int main() {
-
 #ifndef NDEBUG
   std::cout << "NDEBUG MACRO NOT DEFINED" << std::endl;
 #endif
