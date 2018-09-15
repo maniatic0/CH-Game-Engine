@@ -60,18 +60,18 @@ class HelloTriangleApplication {
 #endif  // NDEBUG
 
   void initWindow() {
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Window Init Started" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Window Init Successful" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
   }
 
   bool checkValidationLayerSupport() {
@@ -108,13 +108,13 @@ class HelloTriangleApplication {
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
                                            extensions.data());
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan available extensions:" << std::endl;
 
     for (const auto &extension : extensions) {
       std::cout << "\t" << extension.extensionName << std::endl;
     }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
     // GLFW required Extensions
     uint32_t glfwExtensionCount = 0;
@@ -124,26 +124,26 @@ class HelloTriangleApplication {
     std::vector<const char *> reqExtensions(
         glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "GLFW Required Vulkan extensions:" << std::endl;
 
     for (int i = 0; i < glfwExtensionCount; i++) {
       std::cout << "\t" << glfwExtensions[i] << std::endl;
     }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
     if (enableValidationLayers) {
       reqExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#ifdef _DEBUG
+#ifndef NDEBUG
       std::cout << "Validation Layers Required Vulkan extensions:" << std::endl;
       std::cout << "\t" << VK_EXT_DEBUG_UTILS_EXTENSION_NAME << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
     }
 
 // Extension Check
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Checking required Vulkan Extensions:" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
     int maxSize = reqExtensions.size();
     std::vector<bool> extensionCheck(maxSize, false);
 
@@ -154,13 +154,13 @@ class HelloTriangleApplication {
             strcmp(extension.extensionName, reqExtensions[extIter]) == 0) {
           extensionCheck[extIter] = true;
           maxiter++;
-#ifdef _DEBUG
+#ifndef NDEBUG
           std::cout << "\tFound: " << extension.extensionName << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
           if (maxiter == maxSize) {
-#ifdef _DEBUG
+#ifndef NDEBUG
             std::cout << "All required Vulkan Extensions found" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
             break;
           }
         }
@@ -187,9 +187,9 @@ class HelloTriangleApplication {
   void setupDebugCallback() {
     if (!enableValidationLayers) return;
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Debug Callback Init Started" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -207,9 +207,9 @@ class HelloTriangleApplication {
                                      &callback) != VK_SUCCESS) {
       throw std::runtime_error("failed to set up debug callback!");
     }
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Debug Callback Init Successful" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
   }
 
   void createInstance() {
@@ -218,9 +218,9 @@ class HelloTriangleApplication {
           "validation layers requested, but not available!");
     }
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Instance Init Started" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
     // VK Optional App Config
     VkApplicationInfo appInfo = {};
@@ -258,20 +258,20 @@ class HelloTriangleApplication {
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
       throw std::runtime_error("failed to create instance!");
     }
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Instance Init Successful" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
   }
 
   void initVulkan() {
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Init Started" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
     createInstance();
     setupDebugCallback();
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Vulkan Init Successful" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
   }
 
   void mainLoop() {
@@ -281,9 +281,9 @@ class HelloTriangleApplication {
   }
 
   void cleanup() {
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Cleanup Started" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
@@ -295,19 +295,16 @@ class HelloTriangleApplication {
 
     glfwTerminate();
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     std::cout << "Cleanup Successful" << std::endl;
-#endif  // _DEBUG
+#endif  // !NDEBUG
   }
 };
 
 int main() {
-#ifdef _DEBUG
-  std::cout << "_DEBUG MACRO ACTIVE" << std::endl;
-#endif
 
 #ifndef NDEBUG
-  std::cout << "NDEBUG MACRO NOT ACTIVE" << std::endl;
+  std::cout << "NDEBUG MACRO NOT DEFINED" << std::endl;
 #endif
 
   HelloTriangleApplication app;
