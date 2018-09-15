@@ -353,14 +353,6 @@ class HelloTriangleApplication {
       return 0;
     }
 
-    // Discrete GPUs have a significant performance advantage
-    if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-      score += 1000;
-    }
-
-    // Maximum possible size of textures affects graphics quality
-    score += deviceProperties.limits.maxImageDimension2D;
-
     // Application can't function without geometry shaders
     if (!deviceFeatures.geometryShader) {
 #ifndef NDEBUG
@@ -369,6 +361,14 @@ class HelloTriangleApplication {
 #endif  // !NDEBUG
       return 0;
     }
+
+    // Discrete GPUs have a significant performance advantage
+    if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+      score += 1000;
+    }
+
+    // Maximum possible size of textures affects graphics quality
+    score += deviceProperties.limits.maxImageDimension2D;
 
 #ifndef NDEBUG
     std::cout << "\t" << deviceProperties.deviceName << " score: " << score
