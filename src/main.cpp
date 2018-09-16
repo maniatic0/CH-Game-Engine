@@ -118,11 +118,7 @@ class HelloTriangleApplication {
                                            extensions.data());
 
     LOG("Vulkan available extensions:");
-#ifndef NDEBUG
-    for (const auto &extension : extensions) {
-      LOG("\t" << extension.extensionName);
-    }
-#endif  // !NDEBUG
+    FORLOG(const auto &extension : extensions, "\t" << extension.extensionName);
 
     // GLFW required Extensions
     uint32_t glfwExtensionCount = 0;
@@ -133,11 +129,7 @@ class HelloTriangleApplication {
         glfwExtensions, glfwExtensions + glfwExtensionCount);
 
     LOG("GLFW Required Vulkan extensions:");
-#ifndef NDEBUG
-    for (int i = 0; i < glfwExtensionCount; i++) {
-      LOG("\t" << glfwExtensions[i]);
-    }
-#endif  // !NDEBUG
+    FORLOG(int i = 0; i < glfwExtensionCount; i++, "\t" << glfwExtensions[i]);
 
     if (enableValidationLayers) {
       reqExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -419,10 +411,14 @@ class HelloTriangleApplication {
 
 int main() {
   LONGLOG("NDEBUG MACRO NOT DEFINED");
+
   LONGLOG("LONG "
           << "LOG Test");
   LOG("LOG"
       << " test");
+
+  FORLOG(int i = 0; i < 2; i++, "\t " << i);
+  FORLONGLOG(int i = 0; i < 2; i++, "\t " << i);
 
   HelloTriangleApplication app;
 
