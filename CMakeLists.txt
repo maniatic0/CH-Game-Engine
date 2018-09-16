@@ -135,7 +135,7 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 
 
 
-
+include_directories(include/)
 add_executable(CH_ENGINE src/main.cpp)
 add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
