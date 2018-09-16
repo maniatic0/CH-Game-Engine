@@ -44,9 +44,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else   // !NDEBUG
+#else  // !NDEBUG
 const bool enableValidationLayers = true;
-#endif  // NDEBUG
+#endif // NDEBUG
 
 struct QueueFamilyIndices {
   int graphicsFamily = -1;
@@ -55,7 +55,7 @@ struct QueueFamilyIndices {
 };
 
 class HelloTriangleApplication {
- public:
+public:
   void run() {
     initWindow();
     initVulkan();
@@ -63,7 +63,7 @@ class HelloTriangleApplication {
     cleanup();
   }
 
- private:
+private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -71,6 +71,8 @@ class HelloTriangleApplication {
   VkInstance instance;
   VkDebugUtilsMessengerEXT callback;
   VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+  VkDevice device;
+  VkQueue graphicsQueue;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -179,7 +181,8 @@ class HelloTriangleApplication {
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers) return;
+    if (!enableValidationLayers)
+      return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -193,7 +196,7 @@ class HelloTriangleApplication {
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr;  // Optional
+    createInfo.pUserData = nullptr; // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -256,6 +259,7 @@ class HelloTriangleApplication {
     createInstance();
     setupDebugCallback();
     pickPhysicalDevice();
+    createLogicalDevice();
 
     LOG("Vulkan Init Successful");
   }
@@ -386,6 +390,54 @@ class HelloTriangleApplication {
     LOG("Vulkan Physical Device Selection Successful");
   }
 
+  void createLogicalDevice() {
+    LOG("Vulkan Logical Device Creation Started");
+
+    // Logical Device Queue Create Info
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+    queueCreateInfo.queueCount = 1;
+
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    // Required Device Features (I.e geomtry shader)
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+
+    // Logical Device Create Info
+    VkDeviceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+    // Required Extensions and Validation Layers
+    createInfo.enabledExtensionCount = 0;
+
+    if (enableValidationLayers) {
+      createInfo.enabledLayerCount =
+          static_cast<uint32_t>(validationLayers.size());
+      createInfo.ppEnabledLayerNames = validationLayers.data();
+    } else {
+      createInfo.enabledLayerCount = 0;
+    }
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create logical device!");
+    }
+
+    // Get Graphics Queue
+    vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
+
+    LOG("Vulkan Logical Device Creation Successful");
+  }
+
   void mainLoop() {
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -394,6 +446,8 @@ class HelloTriangleApplication {
 
   void cleanup() {
     LOG("Cleanup Started");
+
+    vkDestroyDevice(device, nullptr);
 
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
