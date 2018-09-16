@@ -7,6 +7,8 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <optional>
+#include <set>
 #include <stdexcept>
 
 #include <utils/debug/log.h>
@@ -44,18 +46,21 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else  // !NDEBUG
+#else   // !NDEBUG
 const bool enableValidationLayers = true;
-#endif // NDEBUG
+#endif  // NDEBUG
 
 struct QueueFamilyIndices {
-  int graphicsFamily = -1;
+  std::optional<uint32_t> graphicsFamily;
+  std::optional<uint32_t> presentFamily;
 
-  bool isComplete() { return graphicsFamily >= 0; }
+  bool isComplete() {
+    return graphicsFamily.has_value() && presentFamily.has_value();
+  }
 };
 
 class HelloTriangleApplication {
-public:
+ public:
   void run() {
     initWindow();
     initVulkan();
@@ -63,16 +68,20 @@ public:
     cleanup();
   }
 
-private:
+ private:
   // GLFW Config
   GLFWwindow *window;
 
   // Vulkan Config
   VkInstance instance;
   VkDebugUtilsMessengerEXT callback;
+  VkSurfaceKHR surface;
+
   VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
   VkDevice device;
+
   VkQueue graphicsQueue;
+  VkQueue presentQueue;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -181,8 +190,7 @@ private:
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers)
-      return;
+    if (!enableValidationLayers) return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -196,7 +204,7 @@ private:
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr; // Optional
+    createInfo.pUserData = nullptr;  // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -258,10 +266,21 @@ private:
 
     createInstance();
     setupDebugCallback();
+    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
 
     LOG("Vulkan Init Successful");
+  }
+
+  void createSurface() {
+    LOG("Vulkan Surface Creation Started");
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create window surface!");
+    }
+
+    LOG("Vulkan Surface Creation Successful");
   }
 
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -276,10 +295,18 @@ private:
                                              queueFamilies.data());
 
     int i = 0;
+    VkBool32 presentSupport = false;
     for (const auto &queueFamily : queueFamilies) {
       if (queueFamily.queueCount > 0 &&
           queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
         indices.graphicsFamily = i;
+      }
+
+      presentSupport = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+      if (queueFamily.queueCount > 0 && presentSupport) {
+        indices.presentFamily = i;
       }
 
       if (indices.isComplete()) {
@@ -396,13 +423,19 @@ private:
     // Logical Device Queue Create Info
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-    VkDeviceQueueCreateInfo queueCreateInfo = {};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
-    queueCreateInfo.queueCount = 1;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
+                                              indices.presentFamily.value()};
 
     float queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+      VkDeviceQueueCreateInfo queueCreateInfo = {};
+      queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+      queueCreateInfo.queueFamilyIndex = queueFamily;
+      queueCreateInfo.queueCount = 1;
+      queueCreateInfo.pQueuePriorities = &queuePriority;
+      queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     // Required Device Features (I.e geomtry shader)
     VkPhysicalDeviceFeatures deviceFeatures = {};
@@ -411,8 +444,9 @@ private:
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
-    createInfo.queueCreateInfoCount = 1;
+    createInfo.queueCreateInfoCount =
+        static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     createInfo.pEnabledFeatures = &deviceFeatures;
 
@@ -433,7 +467,8 @@ private:
     }
 
     // Get Graphics Queue
-    vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 
     LOG("Vulkan Logical Device Creation Successful");
   }
@@ -448,6 +483,8 @@ private:
     LOG("Cleanup Started");
 
     vkDestroyDevice(device, nullptr);
+
+    vkDestroySurfaceKHR(instance, surface, nullptr);
 
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
