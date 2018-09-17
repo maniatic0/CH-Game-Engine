@@ -6,7 +6,7 @@ Game Engine Project based on Game Engine Architecture book by Jason Gregory
 * Clang 6.0.0 (it was made with this compiler in mind and probably only tested on Windows)
 * GLFW (automatic install)
 * GLM (automatic install)
-* Vulkan
+* Vulkan and LunarG Vulkan Tools
 
 # Windows Build
 Requires https://github.com/plasmacel/llvm-vs2017-integration to use Clang 6.0.0.
