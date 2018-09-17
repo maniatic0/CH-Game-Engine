@@ -777,6 +777,8 @@ class HelloTriangleApplication {
     LOG("Vulkan Image View Creation Successful");
   }
 
+  void createGraphicsPipeline() {}
+
   void initVulkan() {
     LOG("Vulkan Init Started");
 
@@ -787,6 +789,7 @@ class HelloTriangleApplication {
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createGraphicsPipeline();
 
     LOG("Vulkan Init Successful");
   }
