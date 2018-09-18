@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include <utils/debug/log.hpp>
+#include <utils/files/binary_loader.hpp>
 
 // GLFW Config
 const int WIDTH = 800;
@@ -47,9 +48,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else   // !NDEBUG
+#else  // !NDEBUG
 const bool enableValidationLayers = true;
-#endif  // NDEBUG
+#endif // NDEBUG
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -70,7 +71,7 @@ struct SwapChainSupportDetails {
 };
 
 class HelloTriangleApplication {
- public:
+public:
   void run() {
     initWindow();
     initVulkan();
@@ -78,7 +79,7 @@ class HelloTriangleApplication {
     cleanup();
   }
 
- private:
+private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -207,7 +208,8 @@ class HelloTriangleApplication {
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers) return;
+    if (!enableValidationLayers)
+      return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -221,7 +223,7 @@ class HelloTriangleApplication {
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr;  // Optional
+    createInfo.pUserData = nullptr; // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -690,8 +692,8 @@ class HelloTriangleApplication {
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0;      // Optional
-      createInfo.pQueueFamilyIndices = nullptr;  // Optional
+      createInfo.queueFamilyIndexCount = 0;     // Optional
+      createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     // If we want transforms like 90 degrees rotation. Current tranform to apply
@@ -777,7 +779,81 @@ class HelloTriangleApplication {
     LOG("Vulkan Image View Creation Successful");
   }
 
-  void createGraphicsPipeline() {}
+  VkShaderModule createShaderModule(const std::vector<char> &code) {
+    // Creating a shader module is simple, we only need to specify a pointer to
+    // the buffer with the bytecode and the length of it. This information is
+    // specified in a VkShaderModuleCreateInfo structure. The one catch is that
+    // the size of the bytecode is specified in bytes, but the bytecode pointer
+    // is a uint32_t pointer rather than a char pointer. Therefore we will need
+    // to cast the pointer with reinterpret_cast as shown below. When you
+    // perform a cast like this, you also need to ensure that the data satisfies
+    // the alignment requirements of uint32_t. Lucky for us, the data is stored
+    // in an std::vector where the default allocator already ensures that the
+    // data satisfies the worst case alignment requirements.
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create shader module!");
+    }
+
+    return shaderModule;
+  }
+
+  void createGraphicsPipeline() {
+    LOG("Vulkan Graphics Pipeline Creation Started");
+    auto vertShaderCode = utils::readFile("shaders/triangle.vert.glsl.spv");
+    auto fragShaderCode = utils::readFile("shaders/triangle.frag.glsl.spv");
+
+    VkShaderModule vertShaderModule;
+    VkShaderModule fragShaderModule;
+
+    vertShaderModule = createShaderModule(vertShaderCode);
+    fragShaderModule = createShaderModule(fragShaderCode);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+    vertShaderStageInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+
+    // The next two members specify the shader module containing the code, and
+    // the function to invoke. That means that it's possible to combine multiple
+    // fragment shaders into a single shader module and use different entry
+    // points to differentiate between their behaviors. In this case we'll stick
+    // to the standard main, however.
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    // There is one more (optional) member, pSpecializationInfo, which we won't
+    // be using here, but is worth discussing. It allows you to specify values
+    // for shader constants. You can use a single shader module where its
+    // behavior can be configured at pipeline creation by specifying different
+    // values for the constants used in it. This is more efficient than
+    // configuring the shader using variables at render time, because the
+    // compiler can do optimizations like eliminating if statements that depend
+    // on these values. If you don't have any constants like that, then you can
+    // set the member to nullptr, which our struct initialization does
+    // automatically.
+    // vertShaderStageInfo.pSpecializationInfo = nullptr;
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+    fragShaderStageInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo,
+                                                      fragShaderStageInfo};
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    LOG("Vulkan Graphics Pipeline Creation Successful");
+  }
 
   void initVulkan() {
     LOG("Vulkan Init Started");
