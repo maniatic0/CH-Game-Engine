@@ -144,11 +144,77 @@ add_dependencies(CH_ENGINE glm-lib)
 target_link_libraries(CH_ENGINE ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}$<$<BOOL:isMultiConfig>:/$<CONFIG>>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
 
+
+# From vhls : https://gist.github.com/vlsh/a0d191701cb48f157b05be7f74d79396
+# Added some little things for cross platform compatibility and optimizations
+if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+    set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin/glslangValidator${CMAKE_EXECUTABLE_SUFFIX}")
+    set(GLSL_OPTIMIZER "$ENV{VULKAN_SDK}/Bin/spirv-opt${CMAKE_EXECUTABLE_SUFFIX}")
+else()
+    set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin32/glslangValidator${CMAKE_EXECUTABLE_SUFFIX}")
+    set(GLSL_OPTIMIZER "$ENV{VULKAN_SDK}/Bin32/spirv-opt${CMAKE_EXECUTABLE_SUFFIX}")
+endif()
+
+file(GLOB_RECURSE GLSL_SOURCE_FILES
+    "shaders/*.frag"
+    "shaders/*.vert"
+    "shaders/*.tesc"
+    "shaders/*.tese"
+    "shaders/*.geom"
+    "shaders/*.comp"
+    "shaders/*.glsl"
+    "shaders/*.hlsl"
+    )
+
+set(SPIRV_BIN_FOLDER ${PROJECT_BINARY_DIR}/shaders)
+set(SPIRV_OPT_PERF_FOLDER ${SPIRV_BIN_FOLDER}/performance)
+set(SPIRV_OPT_SIZE_FOLDER ${SPIRV_BIN_FOLDER}/size)
+
+foreach(GLSL ${GLSL_SOURCE_FILES})
+    get_filename_component(FILE_NAME ${GLSL} NAME)
+    set(SPIRV "${SPIRV_BIN_FOLDER}/${FILE_NAME}.spv")
+    set(SPIRV_OPT_PERF "${SPIRV_OPT_PERF_FOLDER}/${FILE_NAME}.spv")
+    set(SPIRV_OPT_SIZE "${SPIRV_OPT_SIZE_FOLDER}/${FILE_NAME}.spv")
+    add_custom_command(
+        OUTPUT ${SPIRV} ${SPIRV_OPT_PERF} ${SPIRV_OPT_SIZE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_BIN_FOLDER}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OPT_PERF_FOLDER}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OPT_SIZE_FOLDER}"
+        COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+        COMMAND ${GLSL_OPTIMIZER} -O ${SPIRV} -o ${SPIRV_OPT_PERF} 
+        COMMAND ${GLSL_OPTIMIZER} -Os ${SPIRV} -o ${SPIRV_OPT_SIZE}
+        DEPENDS ${GLSL})
+
+  list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+  list(APPEND SPIRV_PERF_BINARY_FILES ${SPIRV_OPT_PERF})
+  list(APPEND SPIRV_SIZE_BINARY_FILES ${SPIRV_OPT_SIZE})
+endforeach(GLSL)
+
+add_custom_target(
+    Shaders 
+    DEPENDS ${SPIRV_BINARY_FILES} ${SPIRV_PERF_BINARY_FILES} ${SPIRV_SIZE_BINARY_FILES}
+    )
+
+add_dependencies(CH_ENGINE Shaders)
+
+add_custom_command(TARGET CH_ENGINE POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:CH_ENGINE>/shaders/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_BINARY_DIR}/shaders"
+        "$<TARGET_FILE_DIR:CH_ENGINE>/shaders"
+        )
+
+
+
 install(TARGETS CH_ENGINE
             RUNTIME DESTINATION ${INSTALL_DIRECTORY}/bin
             LIBRARY DESTINATION ${INSTALL_DIRECTORY}/lib
             ARCHIVE DESTINATION ${INSTALL_DIRECTORY}/lib/static)
 
 install(FILES 
-  $<TARGET_FILE_DIR:CH_ENGINE>/${CMAKE_SHARED_MODULE_PREFIX}glfw3${CMAKE_SHARED_LIBRARY_SUFFIX}
-  DESTINATION ${INSTALL_DIRECTORY}/bin)
+    $<TARGET_FILE_DIR:CH_ENGINE>/${CMAKE_SHARED_MODULE_PREFIX}glfw3${CMAKE_SHARED_LIBRARY_SUFFIX}
+    DESTINATION ${INSTALL_DIRECTORY}/bin)
+
+install(DIRECTORY 
+    ${PROJECT_BINARY_DIR}/shaders
+    DESTINATION ${INSTALL_DIRECTORY}/bin)
