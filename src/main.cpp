@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
-#include <utils/debug/log.h>
+#include <utils/debug/log.hpp>
 
 // GLFW Config
 const int WIDTH = 800;
