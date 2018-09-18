@@ -134,9 +134,15 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 
+# C and C++ files
+
+file(GLOB_RECURSE CH_ENGINE_SRC
+    "src/*.c"
+    "src/*.cpp"
+)
 
 include_directories(include/)
-add_executable(CH_ENGINE src/main.cpp)
+add_executable(CH_ENGINE ${CH_ENGINE_SRC})
 add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
