@@ -14,6 +14,7 @@
 
 #include <utils/debug/log.hpp>
 #include <utils/files/binary_loader.hpp>
+#include <utils/files/file_path.hpp>
 
 // GLFW Config
 const int WIDTH = 800;
@@ -48,9 +49,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else  // !NDEBUG
+#else   // !NDEBUG
 const bool enableValidationLayers = true;
-#endif // NDEBUG
+#endif  // NDEBUG
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -71,7 +72,7 @@ struct SwapChainSupportDetails {
 };
 
 class HelloTriangleApplication {
-public:
+ public:
   void run() {
     initWindow();
     initVulkan();
@@ -79,7 +80,7 @@ public:
     cleanup();
   }
 
-private:
+ private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -208,8 +209,7 @@ private:
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers)
-      return;
+    if (!enableValidationLayers) return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -223,7 +223,7 @@ private:
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr; // Optional
+    createInfo.pUserData = nullptr;  // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -692,8 +692,8 @@ private:
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0;     // Optional
-      createInfo.pQueueFamilyIndices = nullptr; // Optional
+      createInfo.queueFamilyIndexCount = 0;      // Optional
+      createInfo.pQueueFamilyIndices = nullptr;  // Optional
     }
 
     // If we want transforms like 90 degrees rotation. Current tranform to apply
@@ -806,8 +806,8 @@ private:
 
   void createGraphicsPipeline() {
     LOG("Vulkan Graphics Pipeline Creation Started");
-    auto vertShaderCode = utils::readFile("shaders/triangle.vert.glsl.spv");
-    auto fragShaderCode = utils::readFile("shaders/triangle.frag.glsl.spv");
+    auto vertShaderCode = utils::readFile("/shaders/triangle.vert.glsl.spv");
+    auto fragShaderCode = utils::readFile("/shaders/triangle.frag.glsl.spv");
 
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
@@ -903,13 +903,18 @@ private:
   }
 };
 
-int main() {
+int main(int argc, char *argv[]) {
   LONGLOG("NDEBUG MACRO NOT DEFINED");
 
   LONGLOG("LONG "
           << "LOG Test");
   LOG("LOG"
       << " test");
+
+  if (argc < 1) {
+    throw std::runtime_error("failed get runtime location!");
+  }
+  utils::setRuntimeFolder(argv[0]);
 
   FORLOG(int i = 0; i < 2; i++, "\t " << i);
   FORLONGLOG(int i = 0; i < 2; i++, "\t " << i);
