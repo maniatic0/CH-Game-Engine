@@ -49,9 +49,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else   // !NDEBUG
+#else  // !NDEBUG
 const bool enableValidationLayers = true;
-#endif  // NDEBUG
+#endif // NDEBUG
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -72,7 +72,7 @@ struct SwapChainSupportDetails {
 };
 
 class HelloTriangleApplication {
- public:
+public:
   void run() {
     initWindow();
     initVulkan();
@@ -80,7 +80,7 @@ class HelloTriangleApplication {
     cleanup();
   }
 
- private:
+private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -101,6 +101,8 @@ class HelloTriangleApplication {
   VkExtent2D swapChainExtent;
 
   std::vector<VkImageView> swapChainImageViews;
+
+  VkPipelineLayout pipelineLayout;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -209,7 +211,8 @@ class HelloTriangleApplication {
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers) return;
+    if (!enableValidationLayers)
+      return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -223,7 +226,7 @@ class HelloTriangleApplication {
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr;  // Optional
+    createInfo.pUserData = nullptr; // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -692,8 +695,8 @@ class HelloTriangleApplication {
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0;      // Optional
-      createInfo.pQueueFamilyIndices = nullptr;  // Optional
+      createInfo.queueFamilyIndexCount = 0;     // Optional
+      createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     // If we want transforms like 90 degrees rotation. Current tranform to apply
@@ -850,6 +853,178 @@ class HelloTriangleApplication {
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo,
                                                       fragShaderStageInfo};
 
+    // Hardcoded vertex input description
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+    vertexInputInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+    // Vertex Data Description
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+    inputAssembly.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable =
+        VK_FALSE; // Same vertex used by two triangles for example
+
+    // Viewport size (normally all the window but it could be different)
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)swapChainExtent.width;
+    viewport.height = (float)swapChainExtent.height;
+    viewport.minDepth = 0.0f; // Framebuffer depthbuffer
+    viewport.maxDepth = 1.0f; // Framebuffer depthbuffer
+
+    // If we want to clip the framebuffer
+    // It works by dropping pixels that fall outside of it in the rasterizer
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainExtent;
+
+    // Viewport Config
+    VkPipelineViewportStateCreateInfo viewportState = {};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    // Rasterizer Config
+    VkPipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    // Clamp depth rather than discard (useful for shadow mapping). Requires GPU
+    // Feature
+    rasterizer.depthClampEnable = VK_FALSE;
+
+    // If we want to drop everything and not let geometry pass
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+
+    // If we want point cloud, wireframe or filling. Point cloud and wireframe
+    // requires GPU Feature
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+
+    // The lineWidth member is straightforward, it describes the thickness of
+    // lines in terms of number of fragments. The maximum line width that is
+    // supported depends on the hardware and any line thicker than 1.0f requires
+    // you to enable the wideLines GPU feature.
+    rasterizer.lineWidth = 1.0f;
+
+    // Culling and Vertex Winding direction
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+    // Depth Bias (Sometimes used with ShadowMapping)
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+    rasterizer.depthBiasClamp = 0.0f;          // Optional
+    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+
+    // MSAA (disabled for now)
+    VkPipelineMultisampleStateCreateInfo multisampling = {};
+    multisampling.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f;          // Optional
+    multisampling.pSampleMask = nullptr;            // Optional
+    multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+    multisampling.alphaToOneEnable = VK_FALSE;      // Optional
+
+    // If you are using a depth and/or stencil buffer, then you also need to
+    // configure the depth and stencil tests using
+    // VkPipelineDepthStencilStateCreateInfo. We don't have one right now, so we
+    // can simply pass a nullptr instead of a pointer to such a struct. We'll
+    // get back to it in the depth buffering chapter.
+
+    // Color Blending per framebuffer
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE; // No blending
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;             // Optional
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;             // Optional
+
+    // Alpha blending example
+    // colorBlendAttachment.blendEnable = VK_TRUE;
+    // colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    // colorBlendAttachment.dstColorBlendFactor =
+    // VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; colorBlendAttachment.colorBlendOp =
+    // VK_BLEND_OP_ADD; colorBlendAttachment.srcAlphaBlendFactor =
+    // VK_BLEND_FACTOR_ONE; colorBlendAttachment.dstAlphaBlendFactor =
+    // VK_BLEND_FACTOR_ZERO; colorBlendAttachment.alphaBlendOp =
+    // VK_BLEND_OP_ADD;
+
+    // The second structure references the array of structures for all of the
+    // framebuffers and allows you to set blend constants that you can use as
+    // blend factors in the aforementioned calculations.
+    VkPipelineColorBlendStateCreateInfo colorBlending = {};
+    colorBlending.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f; // Optional
+    colorBlending.blendConstants[1] = 0.0f; // Optional
+    colorBlending.blendConstants[2] = 0.0f; // Optional
+    colorBlending.blendConstants[3] = 0.0f; // Optional
+    // If you want to use the second method of blending (bitwise combination),
+    // then you should set logicOpEnable to VK_TRUE. The bitwise operation can
+    // then be specified in the logicOp field. Note that this will automatically
+    // disable the first method, as if you had set blendEnable to VK_FALSE for
+    // every attached framebuffer! The colorWriteMask will also be used in this
+    // mode to determine which channels in the framebuffer will actually be
+    // affected. It is also possible to disable both modes, as we've done here,
+    // in which case the fragment colors will be written to the framebuffer
+    // unmodified.
+
+    // A limited amount of the state that we've specified in the previous
+    // structs can actually be changed without recreating the pipeline. Examples
+    // are the size of the viewport, line width and blend constants. If you want
+    // to do that, then you'll have to fill in a
+    // VkPipelineDynamicStateCreateInfo structure like this:
+
+    /* VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT,
+                                      VK_DYNAMIC_STATE_LINE_WIDTH};
+
+    VkPipelineDynamicStateCreateInfo dynamicState = {};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates; */
+
+    // You can use uniform values in shaders, which are globals similar to
+    // dynamic state variables that can be changed at drawing time to alter the
+    // behavior of your shaders without having to recreate them. They are
+    // commonly used to pass the transformation matrix to the vertex shader, or
+    // to create texture samplers in the fragment shader.
+    // These uniform values need to be specified during pipeline creation by
+    // creating a VkPipelineLayout object. Even though we won't be using them
+    // until a future chapter, we are still required to create an empty pipeline
+    // layout The structure also specifies push constants, which are another way
+    // of passing dynamic values to shaders that we may get into in a future
+    // chapter.
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0;            // Optional
+    pipelineLayoutInfo.pSetLayouts = nullptr;         // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 0;    // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
+                               &pipelineLayout) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create pipeline layout!");
+    }
+
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
     LOG("Vulkan Graphics Pipeline Creation Successful");
@@ -878,6 +1053,8 @@ class HelloTriangleApplication {
 
   void cleanup() {
     LOG("Cleanup Started");
+
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     for (auto imageView : swapChainImageViews) {
       vkDestroyImageView(device, imageView, nullptr);
