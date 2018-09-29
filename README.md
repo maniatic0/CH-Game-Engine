@@ -12,7 +12,7 @@ Game Engine Project based on Game Engine Architecture book by Jason Gregory
 
 ## Windows Build
 
-Requires https://github.com/plasmacel/llvm-vs2017-integration to use Clang 6.0.0.
+Requires <https://github.com/plasmacel/llvm-vs2017-integration> to use Clang 6.0.0.
 
 To start CMake:
 
