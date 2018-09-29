@@ -102,7 +102,10 @@ private:
 
   std::vector<VkImageView> swapChainImageViews;
 
+  VkRenderPass renderPass;
+
   VkPipelineLayout pipelineLayout;
+  VkPipeline graphicsPipeline;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -807,6 +810,75 @@ private:
     return shaderModule;
   }
 
+  void createRenderPass() {
+    LOG("Vulkan Render Pass Started");
+
+    VkAttachmentDescription colorAttachment = {};
+    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    // Clear color and depth from frame buffer
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+    // Don't do anything with the stencil buffer
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    // Textures and framebuffers in Vulkan are represented by VkImage objects
+    // with a certain pixel format, however the layout of the pixels in memory
+    // can change based on what you're trying to do with an image.
+    // VK_IMAGE_LAYOUT_UNDEFINED for initialLayout means that we don't care what
+    // previous layout the image was in
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR = Images to be presented in the swap
+    // chain
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // Attachments config
+    // The attachment parameter specifies which attachment to reference by its
+    // index in the attachment descriptions array. Our array consists of a
+    // single VkAttachmentDescription, so its index is 0. The layout specifies
+    // which layout we would like the attachment to have during a subpass that
+    // uses this reference. Vulkan will automatically transition the attachment
+    // to this layout when the subpass is started. We intend to use the
+    // attachment to function as a color buffer and the
+    // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL layout will give us the best
+    // performance, as its name implies.
+    VkAttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Subpass
+    VkSubpassDescription subpass = {};
+    // Vulkan may also support compute subpasses in the future, so we have to be
+    // explicit about this being a graphics subpass. Next, we specify the
+    // reference to the color attachment:
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    // The index of the attachment in this array is directly referenced from the
+    // fragment shader with the layout(location = 0) out vec4 outColor
+    // directive!
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    // Render Pass Config
+
+    VkRenderPassCreateInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
+    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create render pass!");
+    }
+
+    LOG("Vulkan Render Pass Successful");
+  }
+
   void createGraphicsPipeline() {
     LOG("Vulkan Graphics Pipeline Creation Started");
     auto vertShaderCode = utils::readFile("/shaders/triangle.vert.glsl.spv");
@@ -1025,6 +1097,72 @@ private:
       throw std::runtime_error("failed to create pipeline layout!");
     }
 
+    // We start by referencing the array of VkPipelineShaderStageCreateInfo
+    // structs.
+    VkGraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+
+    // Then we reference all of the structures describing the fixed-function
+    // stage.
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = nullptr; // Optional
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = nullptr; // Optional
+
+    // After that comes the pipeline layout, which is a Vulkan handle rather
+    // than a struct pointer.
+    pipelineInfo.layout = pipelineLayout;
+
+    // And finally we have the reference to the render pass and the index of the
+    // sub pass where this graphics pipeline will be used. It is also possible
+    // to use other render passes with this pipeline instead of this specific
+    // instance, but they have to be compatible with renderPass. The
+    // requirements for compatibility are described here, but we won't be using
+    // that feature in this tutorial.
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
+
+    // There are actually two more parameters: basePipelineHandle and
+    // basePipelineIndex. Vulkan allows you to create a new graphics pipeline by
+    // deriving from an existing pipeline. The idea of pipeline derivatives is
+    // that it is less expensive to set up pipelines when they have much
+    // functionality in common with an existing pipeline and switching between
+    // pipelines from the same parent can also be done quicker. You can either
+    // specify the handle of an existing pipeline with basePipelineHandle or
+    // reference another pipeline that is about to be created by index with
+    // basePipelineIndex. Right now there is only a single pipeline, so we'll
+    // simply specify a null handle and an invalid index. These values are only
+    // used if the VK_PIPELINE_CREATE_DERIVATIVE_BIT flag is also specified in
+    // the flags field of VkGraphicsPipelineCreateInfo.
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex = -1;              // Optional
+
+    // The vkCreateGraphicsPipelines function actually has more parameters than
+    // the usual object creation functions in Vulkan. It is designed to take
+    // multiple VkGraphicsPipelineCreateInfo objects and create multiple
+    // VkPipeline objects in a single call.
+    //
+    // The second parameter, for which we've passed the VK_NULL_HANDLE argument,
+    // references an optional VkPipelineCache object. A pipeline cache can be
+    // used to store and reuse data relevant to pipeline creation across
+    // multiple calls to vkCreateGraphicsPipelines and even across program
+    // executions if the cache is stored to a file. This makes it possible to
+    // significantly speed up pipeline creation at a later time. We'll get into
+    // this in the pipeline cache chapter.
+    //
+    // The graphics pipeline is required for all common drawing operations, so
+    // it should also only be destroyed at the end of the program:
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                                  nullptr, &graphicsPipeline) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
     LOG("Vulkan Graphics Pipeline Creation Successful");
@@ -1040,6 +1178,7 @@ private:
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createRenderPass();
     createGraphicsPipeline();
 
     LOG("Vulkan Init Successful");
@@ -1054,7 +1193,11 @@ private:
   void cleanup() {
     LOG("Cleanup Started");
 
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
+    vkDestroyRenderPass(device, renderPass, nullptr);
 
     for (auto imageView : swapChainImageViews) {
       vkDestroyImageView(device, imageView, nullptr);
