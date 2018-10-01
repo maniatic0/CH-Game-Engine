@@ -107,6 +107,8 @@ private:
   VkPipelineLayout pipelineLayout;
   VkPipeline graphicsPipeline;
 
+  std::vector<VkFramebuffer> swapChainFramebuffers;
+
   void initWindow() {
     LOG("Window Init Started");
     glfwInit();
@@ -1168,6 +1170,31 @@ private:
     LOG("Vulkan Graphics Pipeline Creation Successful");
   }
 
+  void createFramebuffers() {
+    LOG("Vulkan Frame Buffer Creation Started");
+
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+      VkImageView attachments[] = {swapChainImageViews[i]};
+      VkFramebufferCreateInfo framebufferInfo = {};
+      framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      framebufferInfo.renderPass = renderPass;
+      framebufferInfo.attachmentCount = 1;
+      framebufferInfo.pAttachments = attachments;
+      framebufferInfo.width = swapChainExtent.width;
+      framebufferInfo.height = swapChainExtent.height;
+      framebufferInfo.layers = 1;
+
+      if (vkCreateFramebuffer(device, &framebufferInfo, nullptr,
+                              &swapChainFramebuffers[i]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create framebuffer!");
+      }
+    }
+
+    LOG("Vulkan Frame Buffer Creation Successful");
+  }
+
   void initVulkan() {
     LOG("Vulkan Init Started");
 
@@ -1180,6 +1207,7 @@ private:
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFramebuffers();
 
     LOG("Vulkan Init Successful");
   }
@@ -1193,13 +1221,17 @@ private:
   void cleanup() {
     LOG("Cleanup Started");
 
+    for (auto &framebuffer : swapChainFramebuffers) {
+      vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
 
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     vkDestroyRenderPass(device, renderPass, nullptr);
 
-    for (auto imageView : swapChainImageViews) {
+    for (auto &imageView : swapChainImageViews) {
       vkDestroyImageView(device, imageView, nullptr);
     }
 
