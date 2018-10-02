@@ -49,9 +49,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else  // !NDEBUG
+#else   // !NDEBUG
 const bool enableValidationLayers = true;
-#endif // NDEBUG
+#endif  // NDEBUG
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -72,7 +72,7 @@ struct SwapChainSupportDetails {
 };
 
 class HelloTriangleApplication {
-public:
+ public:
   void run() {
     initWindow();
     initVulkan();
@@ -80,7 +80,7 @@ public:
     cleanup();
   }
 
-private:
+ private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -219,8 +219,7 @@ private:
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers)
-      return;
+    if (!enableValidationLayers) return;
 
     LOG("Vulkan Debug Callback Init Started");
 
@@ -234,7 +233,7 @@ private:
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr; // Optional
+    createInfo.pUserData = nullptr;  // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -703,8 +702,8 @@ private:
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0;     // Optional
-      createInfo.pQueueFamilyIndices = nullptr; // Optional
+      createInfo.queueFamilyIndexCount = 0;      // Optional
+      createInfo.pQueueFamilyIndices = nullptr;  // Optional
     }
 
     // If we want transforms like 90 degrees rotation. Current tranform to apply
@@ -935,9 +934,9 @@ private:
     vertexInputInfo.sType =
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+    vertexInputInfo.pVertexBindingDescriptions = nullptr;  // Optional
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr;  // Optional
 
     // Vertex Data Description
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
@@ -945,7 +944,7 @@ private:
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable =
-        VK_FALSE; // Same vertex used by two triangles for example
+        VK_FALSE;  // Same vertex used by two triangles for example
 
     // Viewport size (normally all the window but it could be different)
     VkViewport viewport = {};
@@ -953,8 +952,8 @@ private:
     viewport.y = 0.0f;
     viewport.width = (float)swapChainExtent.width;
     viewport.height = (float)swapChainExtent.height;
-    viewport.minDepth = 0.0f; // Framebuffer depthbuffer
-    viewport.maxDepth = 1.0f; // Framebuffer depthbuffer
+    viewport.minDepth = 0.0f;  // Framebuffer depthbuffer
+    viewport.maxDepth = 1.0f;  // Framebuffer depthbuffer
 
     // If we want to clip the framebuffer
     // It works by dropping pixels that fall outside of it in the rasterizer
@@ -997,9 +996,9 @@ private:
 
     // Depth Bias (Sometimes used with ShadowMapping)
     rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f;          // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+    rasterizer.depthBiasConstantFactor = 0.0f;  // Optional
+    rasterizer.depthBiasClamp = 0.0f;           // Optional
+    rasterizer.depthBiasSlopeFactor = 0.0f;     // Optional
 
     // MSAA (disabled for now)
     VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -1007,10 +1006,10 @@ private:
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.0f;          // Optional
-    multisampling.pSampleMask = nullptr;            // Optional
-    multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
-    multisampling.alphaToOneEnable = VK_FALSE;      // Optional
+    multisampling.minSampleShading = 1.0f;           // Optional
+    multisampling.pSampleMask = nullptr;             // Optional
+    multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
+    multisampling.alphaToOneEnable = VK_FALSE;       // Optional
 
     // If you are using a depth and/or stencil buffer, then you also need to
     // configure the depth and stencil tests using
@@ -1023,13 +1022,15 @@ private:
     colorBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE; // No blending
+    colorBlendAttachment.blendEnable = VK_FALSE;  // No blending
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.dstColorBlendFactor =
+        VK_BLEND_FACTOR_ZERO;                                        // Optional
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;             // Optional
     colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;             // Optional
+    colorBlendAttachment.dstAlphaBlendFactor =
+        VK_BLEND_FACTOR_ZERO;                             // Optional
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;  // Optional
 
     // Alpha blending example
     // colorBlendAttachment.blendEnable = VK_TRUE;
@@ -1048,13 +1049,13 @@ private:
     colorBlending.sType =
         VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;  // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f; // Optional
-    colorBlending.blendConstants[1] = 0.0f; // Optional
-    colorBlending.blendConstants[2] = 0.0f; // Optional
-    colorBlending.blendConstants[3] = 0.0f; // Optional
+    colorBlending.blendConstants[0] = 0.0f;  // Optional
+    colorBlending.blendConstants[1] = 0.0f;  // Optional
+    colorBlending.blendConstants[2] = 0.0f;  // Optional
+    colorBlending.blendConstants[3] = 0.0f;  // Optional
     // If you want to use the second method of blending (bitwise combination),
     // then you should set logicOpEnable to VK_TRUE. The bitwise operation can
     // then be specified in the logicOp field. Note that this will automatically
@@ -1092,10 +1093,10 @@ private:
     // chapter.
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;            // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr;         // Optional
-    pipelineLayoutInfo.pushConstantRangeCount = 0;    // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+    pipelineLayoutInfo.setLayoutCount = 0;             // Optional
+    pipelineLayoutInfo.pSetLayouts = nullptr;          // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
                                &pipelineLayout) != VK_SUCCESS) {
@@ -1116,9 +1117,9 @@ private:
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = nullptr; // Optional
+    pipelineInfo.pDepthStencilState = nullptr;  // Optional
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = nullptr; // Optional
+    pipelineInfo.pDynamicState = nullptr;  // Optional
 
     // After that comes the pipeline layout, which is a Vulkan handle rather
     // than a struct pointer.
@@ -1145,8 +1146,8 @@ private:
     // simply specify a null handle and an invalid index. These values are only
     // used if the VK_PIPELINE_CREATE_DERIVATIVE_BIT flag is also specified in
     // the flags field of VkGraphicsPipelineCreateInfo.
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-    pipelineInfo.basePipelineIndex = -1;              // Optional
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
+    pipelineInfo.basePipelineIndex = -1;               // Optional
 
     // The vkCreateGraphicsPipelines function actually has more parameters than
     // the usual object creation functions in Vulkan. It is designed to take
@@ -1216,7 +1217,7 @@ private:
       buffers to be rerecorded individually, without this flag they all have
       to be reset together
     */
-    poolInfo.flags = 0; // Optional
+    poolInfo.flags = 0;  // Optional
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) !=
         VK_SUCCESS) {
@@ -1269,11 +1270,30 @@ private:
       // finished yet. The pInheritanceInfo parameter is only relevant for
       // secondary command buffers. It specifies which state to inherit from the
       // calling primary command buffers.
-      beginInfo.pInheritanceInfo = nullptr; // Optional
+      beginInfo.pInheritanceInfo = nullptr;  // Optional
 
       if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
       }
+
+      VkRenderPassBeginInfo renderPassInfo = {};
+      renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      renderPassInfo.renderPass = renderPass;
+      renderPassInfo.framebuffer = swapChainFramebuffers[i];
+
+      renderPassInfo.renderArea.offset = {0, 0};
+      renderPassInfo.renderArea.extent = swapChainExtent;
+
+// -Wmissing-braces is not working properly on clang
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
+      VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+#pragma clang diagnostic pop
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = &clearColor;
+
+      vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
 
       vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
                         graphicsPipeline);
@@ -1289,6 +1309,8 @@ private:
       // firstInstance: Used as an offset for instanced rendering, defines the
       // lowest value of gl_InstanceIndex.
       vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+      vkCmdEndRenderPass(commandBuffers[i]);
 
       if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
