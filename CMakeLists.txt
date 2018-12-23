@@ -72,7 +72,7 @@ ExternalProject_Add (
       GIT_TAG "master"
       CMAKE_GENERATOR ${CMAKE_GENERATOR}
       CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
-      UPDATE_COMMAND ""
+      #UPDATE_COMMAND "" # Uncomment to stop git pull
       INSTALL_COMMAND # See https://stackoverflow.com/questions/16842218/how-to-use-cmake-externalproject-add-or-alternatives-in-a-cross-platform-way
         ${CMAKE_COMMAND}
         --build .
@@ -104,7 +104,7 @@ ExternalProject_Add (
 	  PREFIX ${GLM_LOCATION}
       GIT_REPOSITORY "https://github.com/g-truc/glm.git"
       GIT_TAG "master"
-      UPDATE_COMMAND ""
+      #UPDATE_COMMAND "" # Uncomment to stop git pull
       CONFIGURE_COMMAND ""
       BUILD_COMMAND ""
       INSTALL_COMMAND ""
