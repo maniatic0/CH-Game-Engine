@@ -40,6 +40,15 @@ set(CMAKE_CXX_STANDARD 17)
 # External Libraries
 set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 
+# Work Offline
+option(BUILD_OFFLINE "Build offline" OFF)
+
+if (${BUILD_OFFLINE})
+    set_property(DIRECTORY ${CMAKE_BINARY_DIR}
+                 PROPERTY EP_UPDATE_DISCONNECTED 1)
+    message("Working offline, not pulling external projects")
+endif()
+
 # IMPORTANT: VS doesn't care about this
 # See: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake?rq=1
 message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} CONFIG=${CONFIG}")
@@ -93,7 +102,6 @@ ExternalProject_Add (
       )
 
 include_directories(${GLFW_INCLUDE_LOCATION})
-link_directories($<TARGET_LINKER_FILE_DIR:CH_ENGINE>)
 
 # GLM 
 set(GLM_LOCATION ${EXTERNAL_INSTALL_LOCATION}/GLM)
@@ -145,12 +153,17 @@ file(GLOB_RECURSE CH_ENGINE_SRC
 
 include_directories(include/)
 add_executable(CH_ENGINE ${CH_ENGINE_SRC})
+
+set_target_properties(CH_ENGINE PROPERTIES
+      ENABLE_EXPORTS 1)
+
 add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
 target_link_libraries(CH_ENGINE ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}$<$<BOOL:isMultiConfig>:/$<CONFIG>>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_link_libraries(CH_ENGINE ${Vulkan_LIBRARIES})
+link_directories($<TARGET_LINKER_FILE_DIR:CH_ENGINE>)
 
 
 # From vhls : https://gist.github.com/vlsh/a0d191701cb48f157b05be7f74d79396
