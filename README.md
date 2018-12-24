@@ -39,6 +39,8 @@ Where %1 is either Debug or Release
 Use this command to get all the clang/gcc compiler include headers folders
 
 ```Batchfile
-clang -v -E -x c++ -
-gcc -v -E -x c++ -
+clang++ -E -x c++ - -v < nul
+gcc -v -E -x c++ - -v < nul
+clang++ -E -x c++ - -v < /dev/null
+g++ -E -x c++ - -v < /dev/null
 ```
