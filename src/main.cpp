@@ -120,15 +120,28 @@ class HelloTriangleApplication {
   std::vector<VkFence> inFlightFences;
   size_t currentFrame = 0;
 
+  bool framebufferResized = false;
+
   void initWindow() {
     LOG("Window Init Started");
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+    // Arbitrary pointer, we use it to send the instance
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     LOG("Window Init Successful");
+  }
+
+  static void framebufferResizeCallback(GLFWwindow *window, int width,
+                                        int height) {
+    // Get the pointer we setup with the instance
+    auto app = reinterpret_cast<HelloTriangleApplication *>(
+        glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
   }
 
   bool checkValidationLayerSupport() {
@@ -641,7 +654,12 @@ class HelloTriangleApplication {
         std::numeric_limits<uint32_t>::max()) {
       return capabilities.currentExtent;
     } else {
-      VkExtent2D actualExtent = {WIDTH, HEIGHT};
+      // Get Current Window Size
+      int width, height;
+      glfwGetFramebufferSize(window, &width, &height);
+
+      VkExtent2D actualExtent = {static_cast<uint32_t>(width),
+                                 static_cast<uint32_t>(height)};
 
       // Get the biggest resolution possible clamped by min/max extent
       actualExtent.width =
@@ -1370,6 +1388,46 @@ class HelloTriangleApplication {
     LOG("Vulkan Sync Objects Creation Successful");
   }
 
+  void cleanupSwapChain() {
+    LOG("SwapChain Cleanup Started");
+    for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+      vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+    }
+
+    vkFreeCommandBuffers(device, commandPool,
+                         static_cast<uint32_t>(commandBuffers.size()),
+                         commandBuffers.data());
+
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    vkDestroyRenderPass(device, renderPass, nullptr);
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+      vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+    }
+
+    vkDestroySwapchainKHR(device, swapChain, nullptr);
+
+    LOG("SwapChain Cleanup Successful");
+  }
+
+  void recreateSwapChain() {
+    LOG("SwapChain Recreation Started");
+
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+    createRenderPass();
+    createGraphicsPipeline();
+    createFramebuffers();
+    createCommandBuffers();
+
+    LOG("SwapChain Recreation Successful");
+  }
+
   void initVulkan() {
     LOG("Vulkan Init Started");
 
@@ -1403,12 +1461,23 @@ class HelloTriangleApplication {
   void drawFrame() {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE,
                     std::numeric_limits<uint64_t>::max());
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(
+
+    // Obtain the array of presentable images associated with a swapchain
+    VkResult result = vkAcquireNextImageKHR(
         device, swapChain, std::numeric_limits<uint64_t>::max(),
         imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    // Recreate the swapchain if necessary i.e Window Resize
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+      framebufferResized = false;
+      recreateSwapChain();
+      return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+      // Check
+      throw std::runtime_error("failed to acquire swap chain image!");
+    }
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1426,6 +1495,8 @@ class HelloTriangleApplication {
     VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     if (vkQueueSubmit(graphicsQueue, 1, &submitInfo,
                       inFlightFences[currentFrame]) != VK_SUCCESS) {
@@ -1445,12 +1516,23 @@ class HelloTriangleApplication {
 
     presentInfo.pResults = nullptr;  // Optional
 
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    // Recreate the swapchain if necessary i.e Window Resize or Suboptimal
+    // Swapchain
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+      recreateSwapChain();
+    } else if (result != VK_SUCCESS) {
+      throw std::runtime_error("failed to present swap chain image!");
+    }
+
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
   }
 
   void cleanup() {
     LOG("Cleanup Started");
+
+    cleanupSwapChain();
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
       vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -1460,30 +1542,13 @@ class HelloTriangleApplication {
 
     vkDestroyCommandPool(device, commandPool, nullptr);
 
-    for (auto &framebuffer : swapChainFramebuffers) {
-      vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
-
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-
-    vkDestroyRenderPass(device, renderPass, nullptr);
-
-    for (auto &imageView : swapChainImageViews) {
-      vkDestroyImageView(device, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
-
     vkDestroyDevice(device, nullptr);
-
-    vkDestroySurfaceKHR(instance, surface, nullptr);
 
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
     }
 
+    vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
 
     glfwDestroyWindow(window);
