@@ -127,7 +127,7 @@ class HelloTriangleApplication {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
     // Arbitrary pointer, we use it to send the instance
@@ -1413,6 +1413,14 @@ class HelloTriangleApplication {
 
   void recreateSwapChain() {
     LOG("SwapChain Recreation Started");
+
+    // Handle Window Minimization by busy wait until we are out of the
+    // background again
+    int width = 0, height = 0;
+    while (width == 0 || height == 0) {
+      glfwGetFramebufferSize(window, &width, &height);
+      glfwWaitEvents();
+    }
 
     vkDeviceWaitIdle(device);
 
