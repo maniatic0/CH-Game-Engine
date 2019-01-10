@@ -65,7 +65,7 @@ struct Vertex {
   }
 };
 
-const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
                                       {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
                                       {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
@@ -174,6 +174,10 @@ class HelloTriangleApplication {
   size_t currentFrame = 0;
 
   bool framebufferResized = false;
+
+  // Vertex Buffer
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -1412,7 +1416,15 @@ class HelloTriangleApplication {
       // vertex buffer, defines the lowest value of gl_VertexIndex.
       // firstInstance: Used as an offset for instanced rendering, defines the
       // lowest value of gl_InstanceIndex.
-      vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+      // vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+      // Bind Vertex Buffers
+      VkBuffer vertexBuffers[] = {vertexBuffer};
+      VkDeviceSize offsets[] = {0};
+      vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+      vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0,
+                0);
 
       vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1452,8 +1464,97 @@ class HelloTriangleApplication {
     LOG("Vulkan Sync Objects Creation Successful");
   }
 
+  // Get suitable memory type from physical device
+  uint32_t findMemoryType(uint32_t typeFilter,
+                          VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    /*
+    However, we're not just interested in a memory type that is suitable for the
+    vertex buffer. We also need to be able to write our vertex data to that
+    memory. The memoryTypes array consists of VkMemoryType structs that specify
+    the heap and properties of each type of memory. The properties define
+    special features of the memory, like being able to map it so we can write to
+    it from the CPU. This property is indicated with
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, but we also need to use the
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT property. We'll see why when we map the
+    memory.
+    */
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags &
+                                    properties) == properties) {
+        return i;
+      }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+  }
+
+  void createVertexBuffer() {
+    LOG("Vulkan Vertex Buffer Creation Successful");
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create vertex buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+        findMemoryType(memRequirements.memoryTypeBits,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+
+    vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+
+    /*
+    You can now simply memcpy the vertex data to the mapped memory and unmap it
+    again using vkUnmapMemory. Unfortunately the driver may not immediately copy
+    the data into the buffer memory, for example because of caching. It is also
+    possible that writes to the buffer are not visible in the mapped memory yet.
+    There are two ways to deal with that problem:
+
+    Use a memory heap that is host coherent, indicated with
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT Call vkFlushMappedMemoryRanges to after
+    writing to the mapped memory, and call vkInvalidateMappedMemoryRanges before
+    reading from the mapped memory We went for the first approach, which ensures
+    that the mapped memory always matches the contents of the allocated memory.
+    Do keep in mind that this may lead to slightly worse performance than
+    explicit flushing, but we'll see why that doesn't matter in the next
+    chapter.
+
+    Flushing memory ranges or using a coherent memory heap means that the driver
+    will be aware of our writes to the buffer, but it doesn't mean that they are
+    actually visible on the GPU yet. The transfer of data to the GPU is an
+    operation that happens in the background and the specification simply tells
+    us that it is guaranteed to be complete as of the next call to
+    vkQueueSubmit.
+    */
+
+    void *data;
+    vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+    vkUnmapMemory(device, vertexBufferMemory);
+
+    LOG("Vulkan Vertex Buffer Creation Successful");
+  }
+
   void cleanupSwapChain() {
-    LOG("SwapChain Cleanup Started");
+    LOG("Vulkan SwapChain Cleanup Started");
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
       vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
@@ -1472,11 +1573,11 @@ class HelloTriangleApplication {
 
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 
-    LOG("SwapChain Cleanup Successful");
+    LOG("Vulkan SwapChain Cleanup Successful");
   }
 
   void recreateSwapChain() {
-    LOG("SwapChain Recreation Started");
+    LOG("Vulkan SwapChain Recreation Started");
 
     // Handle Window Minimization by busy wait until we are out of the
     // background again
@@ -1497,7 +1598,7 @@ class HelloTriangleApplication {
     createFramebuffers();
     createCommandBuffers();
 
-    LOG("SwapChain Recreation Successful");
+    LOG("Vulkan SwapChain Recreation Successful");
   }
 
   void initVulkan() {
@@ -1514,6 +1615,7 @@ class HelloTriangleApplication {
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
 
@@ -1605,6 +1707,9 @@ class HelloTriangleApplication {
     LOG("Cleanup Started");
 
     cleanupSwapChain();
+
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
       vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
