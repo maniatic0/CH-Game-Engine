@@ -109,9 +109,11 @@ const bool enableValidationLayers = true;
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
   std::optional<uint32_t> presentFamily;
+  std::optional<uint32_t> transferFamily;
 
   bool isComplete() {
-    return graphicsFamily.has_value() && presentFamily.has_value();
+    return graphicsFamily.has_value() && presentFamily.has_value() &&
+           transferFamily.has_value();
   }
 };
 
@@ -149,6 +151,7 @@ class HelloTriangleApplication {
 
   VkQueue graphicsQueue;
   VkQueue presentQueue;
+  VkQueue transferQueue;
 
   VkSwapchainKHR swapChain;
   std::vector<VkImage> swapChainImages;
@@ -165,6 +168,7 @@ class HelloTriangleApplication {
   std::vector<VkFramebuffer> swapChainFramebuffers;
 
   VkCommandPool commandPool;
+  VkCommandPool transferCommandPool;
   std::vector<VkCommandBuffer> commandBuffers;
 
   // Drawing
@@ -391,10 +395,21 @@ class HelloTriangleApplication {
 
     int i = 0;
     VkBool32 presentSupport = false;
+    bool separateTransferQueue = false;
     for (const auto &queueFamily : queueFamilies) {
-      if (queueFamily.queueCount > 0 &&
-          queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-        indices.graphicsFamily = i;
+      if (queueFamily.queueCount > 0) {
+        // Check if it is a graphics queue
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+          indices.graphicsFamily = i;
+          if (!indices.transferFamily.has_value()) {
+            indices.transferFamily = i;
+            separateTransferQueue = false;
+          }
+          // Check if it is not a graphics queue and it is a transfer queue
+        } else if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+          indices.transferFamily = i;
+          separateTransferQueue = true;
+        }
       }
 
       presentSupport = false;
@@ -404,7 +419,7 @@ class HelloTriangleApplication {
         indices.presentFamily = i;
       }
 
-      if (indices.isComplete()) {
+      if (separateTransferQueue && indices.isComplete()) {
         break;
       }
 
@@ -609,7 +624,8 @@ class HelloTriangleApplication {
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::unordered_set<uint32_t> uniqueQueueFamilies = {
-        indices.graphicsFamily.value(), indices.presentFamily.value()};
+        indices.graphicsFamily.value(), indices.presentFamily.value(),
+        indices.transferFamily.value()};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -660,6 +676,9 @@ class HelloTriangleApplication {
     // Get Graphics Queue
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+
+    // Get Transfer Quere
+    vkGetDeviceQueue(device, indices.transferFamily.value(), 0, &transferQueue);
 
     LOG("Vulkan Logical Device Creation Successful");
   }
@@ -1332,6 +1351,25 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create command pool!");
     }
 
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+
+    /*
+    There are two possible flags for command pools:
+    • VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers
+      are rerecorded with new commands very often (may change memory allocation
+      behavior)
+    • VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command
+      buffers to be rerecorded individually, without this flag they all have
+      to be reset together
+    */
+    poolInfo.flags = 0;  // Optional
+
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &transferCommandPool) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create command pool!");
+    }
+
     LOG("Vulkan Command Pool Creation Successful");
   }
 
@@ -1490,65 +1528,110 @@ class HelloTriangleApplication {
     throw std::runtime_error("failed to find suitable memory type!");
   }
 
-  void createVertexBuffer() {
-    LOG("Vulkan Vertex Buffer Creation Successful");
+  void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                    VkMemoryPropertyFlags properties, VkBuffer &buffer,
+                    VkDeviceMemory &bufferMemory) {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
 
-    if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) !=
-        VK_SUCCESS) {
-      throw std::runtime_error("failed to create vertex buffer!");
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
+                                     indices.transferFamily.value()};
+
+    if (indices.graphicsFamily != indices.transferFamily) {
+      bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+      bufferInfo.queueFamilyIndexCount = 2;
+      bufferInfo.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      bufferInfo.queueFamilyIndexCount = 0;      // Optional
+      bufferInfo.pQueueFamilyIndices = nullptr;  // Optional
+    }
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create buffer!");
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+    vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex =
-        findMemoryType(memRequirements.memoryTypeBits,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) !=
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) !=
         VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate vertex buffer memory!");
+      throw std::runtime_error("failed to allocate buffer memory!");
     }
 
-    vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+  }
 
-    /*
-    You can now simply memcpy the vertex data to the mapped memory and unmap it
-    again using vkUnmapMemory. Unfortunately the driver may not immediately copy
-    the data into the buffer memory, for example because of caching. It is also
-    possible that writes to the buffer are not visible in the mapped memory yet.
-    There are two ways to deal with that problem:
+  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    // allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = transferCommandPool;
+    allocInfo.commandBufferCount = 1;
 
-    Use a memory heap that is host coherent, indicated with
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT Call vkFlushMappedMemoryRanges to after
-    writing to the mapped memory, and call vkInvalidateMappedMemoryRanges before
-    reading from the mapped memory We went for the first approach, which ensures
-    that the mapped memory always matches the contents of the allocated memory.
-    Do keep in mind that this may lead to slightly worse performance than
-    explicit flushing, but we'll see why that doesn't matter in the next
-    chapter.
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
 
-    Flushing memory ranges or using a coherent memory heap means that the driver
-    will be aware of our writes to the buffer, but it doesn't mean that they are
-    actually visible on the GPU yet. The transfer of data to the GPU is an
-    operation that happens in the background and the specification simply tells
-    us that it is guaranteed to be complete as of the next call to
-    vkQueueSubmit.
-    */
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion = {};
+    copyRegion.srcOffset = 0;  // Optional
+    copyRegion.dstOffset = 0;  // Optional
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(transferQueue);
+
+    vkFreeCommandBuffers(device, transferCommandPool, 1, &commandBuffer);
+  }
+
+  void createVertexBuffer() {
+    LOG("Vulkan Vertex Buffer Creation Successful");
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
 
     void *data;
-    vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferInfo.size);
-    vkUnmapMemory(device, vertexBufferMemory);
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
 
     LOG("Vulkan Vertex Buffer Creation Successful");
   }
@@ -1718,6 +1801,7 @@ class HelloTriangleApplication {
     }
 
     vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyCommandPool(device, transferCommandPool, nullptr);
 
     vkDestroyDevice(device, nullptr);
 
