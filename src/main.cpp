@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#include <utils/files/files_config.h>
 #include <utils/debug/log.hpp>
 #include <utils/files/binary_loader.hpp>
 #include <utils/files/file_path.hpp>
@@ -1071,8 +1072,8 @@ class HelloTriangleApplication {
 
   void createGraphicsPipeline() {
     LOG("Vulkan Graphics Pipeline Creation Started");
-    auto vertShaderCode = utils::readFile("/shaders/triangle.vert.glsl.spv");
-    auto fragShaderCode = utils::readFile("/shaders/triangle.frag.glsl.spv");
+    auto vertShaderCode = utils::readAssetFile("triangle.vert.glsl.spv", true);
+    auto fragShaderCode = utils::readAssetFile("triangle.frag.glsl.spv", true);
 
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
@@ -1609,6 +1610,18 @@ class HelloTriangleApplication {
     throw std::runtime_error("failed to find suitable memory type!");
   }
 
+  void createTextureImage() {
+    int texWidth, texHeight, texChannels;
+    stbi_uc *pixels =
+        stbi_load(utils::fixRelativeAssetPath("textures/texture.jpg").c_str(),
+                  &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+    if (!pixels) {
+      throw std::runtime_error("failed to load texture image!");
+    }
+  }
+
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                     VkMemoryPropertyFlags properties, VkBuffer &buffer,
                     VkDeviceMemory &bufferMemory) {
@@ -1891,6 +1904,7 @@ class HelloTriangleApplication {
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createTextureImage();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();

@@ -180,13 +180,32 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 
+# Config Generation
+
+set(ASSETS_FOLDER_NAME assets)
+set(ASSETS_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/${ASSETS_FOLDER_NAME})
+
+set(TEXTURES_FOLDER_NAME textures)
+set(SHADERS_FOLDER_NAME shaders)
+
+file(GLOB_RECURSE CONFIG_FILES
+    "src/*.in"
+    "include/*.in"
+)
+
+foreach(CONFIG_FILE ${CONFIG_FILES})
+    string(REGEX REPLACE "\\.[^.]*$" "" CONFIG_FILE_WITHOUT_EXT ${CONFIG_FILE})
+    configure_file(${CONFIG_FILE} ${CONFIG_FILE_WITHOUT_EXT})
+    message("Configured '${CONFIG_FILE}' to '${CONFIG_FILE_WITHOUT_EXT}'")
+endforeach(CONFIG_FILE)
+
 # C and C++ files
 
 file(GLOB_RECURSE CH_ENGINE_SRC
     "src/*.c"
     "src/*.cpp"
-    "src/*.h"
-    "src/*.hpp"
+    "include/*.h"
+    "include/*.hpp"
 )
 
 include_directories(include/)
@@ -223,17 +242,17 @@ else()
 endif()
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
-    "shaders/*.frag"
-    "shaders/*.vert"
-    "shaders/*.tesc"
-    "shaders/*.tese"
-    "shaders/*.geom"
-    "shaders/*.comp"
-    "shaders/*.glsl"
-    "shaders/*.hlsl"
+    "${SHADERS_FOLDER_NAME}/*.frag"
+    "${SHADERS_FOLDER_NAME}/*.vert"
+    "${SHADERS_FOLDER_NAME}/*.tesc"
+    "${SHADERS_FOLDER_NAME}/*.tese"
+    "${SHADERS_FOLDER_NAME}/*.geom"
+    "${SHADERS_FOLDER_NAME}/*.comp"
+    "${SHADERS_FOLDER_NAME}/*.glsl"
+    "${SHADERS_FOLDER_NAME}/*.hlsl"
     )
 
-set(SPIRV_BIN_FOLDER ${PROJECT_BINARY_DIR}/shaders)
+set(SPIRV_BIN_FOLDER ${PROJECT_BINARY_DIR}/${SHADERS_FOLDER_NAME})
 set(SPIRV_OPT_PERF_FOLDER ${SPIRV_BIN_FOLDER}/performance)
 set(SPIRV_OPT_SIZE_FOLDER ${SPIRV_BIN_FOLDER}/size)
 
@@ -265,10 +284,13 @@ add_custom_target(
 add_dependencies(CH_ENGINE Shaders)
 
 add_custom_command(TARGET CH_ENGINE POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:CH_ENGINE>/shaders/"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:CH_ENGINE>/${ASSETS_FOLDER_NAME}/${SHADERS_FOLDER_NAME}/"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${PROJECT_BINARY_DIR}/shaders"
-        "$<TARGET_FILE_DIR:CH_ENGINE>/shaders"
+        "${PROJECT_BINARY_DIR}/${SHADERS_FOLDER_NAME}"
+        "$<TARGET_FILE_DIR:CH_ENGINE>/${ASSETS_FOLDER_NAME}/${SHADERS_FOLDER_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${ASSETS_FOLDER}"
+        "$<TARGET_FILE_DIR:CH_ENGINE>/${ASSETS_FOLDER_NAME}"
         )
 
 
@@ -283,5 +305,9 @@ install(FILES
     DESTINATION ${INSTALL_DIRECTORY}/bin)
 
 install(DIRECTORY 
-    ${PROJECT_BINARY_DIR}/shaders
-    DESTINATION ${INSTALL_DIRECTORY}/bin)
+    ${PROJECT_BINARY_DIR}/${SHADERS_FOLDER_NAME}
+    DESTINATION ${INSTALL_DIRECTORY}/bin/${ASSETS_FOLDER_NAME}/${SHADERS_FOLDER_NAME})
+
+install(DIRECTORY 
+    ${ASSETS_FOLDER}
+    DESTINATION ${INSTALL_DIRECTORY}/bin/${ASSETS_FOLDER_NAME})

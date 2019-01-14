@@ -1,0 +1,11 @@
+#ifndef FILES_CONFIG_HEADER_GUARD
+#define FILES_CONFIG_HEADER_GUARD
+
+/*
+ * These values are automatically set according to their cmake variables.
+ */
+#define ASSETS_FOLDER_NAME "${ASSETS_FOLDER_NAME}"
+#define TEXTURES_FOLDER_NAME "${TEXTURES_FOLDER_NAME}"
+#define SHADERS_FOLDER_NAME "${SHADERS_FOLDER_NAME}"
+
+#endif /* FILES_CONFIG_HEADER_GUARD */
