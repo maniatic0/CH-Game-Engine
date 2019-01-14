@@ -206,6 +206,9 @@ class HelloTriangleApplication {
   std::vector<VkBuffer> uniformBuffers;
   std::vector<VkDeviceMemory> uniformBuffersMemory;
 
+  VkDescriptorPool descriptorPool;
+  std::vector<VkDescriptorSet> descriptorSets;
+
   void initWindow() {
     LOG("Window Init Started");
     glfwInit();
@@ -1183,7 +1186,9 @@ class HelloTriangleApplication {
 
     // Culling and Vertex Winding direction
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    // rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace =
+        VK_FRONT_FACE_COUNTER_CLOCKWISE;  // OpenGL to Vulkan Fix
 
     // Depth Bias (Sometimes used with ShadowMapping)
     rasterizer.depthBiasEnable = VK_FALSE;
@@ -1531,6 +1536,9 @@ class HelloTriangleApplication {
           VK_INDEX_TYPE_UINT16);  // VK_INDEX_TYPE_UINT16 because we are using
                                   // uint_16
 
+      vkCmdBindDescriptorSets(commandBuffers[i],
+                              VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+                              0, 1, &descriptorSets[i], 0, nullptr);
       vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()),
                        1, 0, 0, 0);
 
@@ -1678,7 +1686,7 @@ class HelloTriangleApplication {
   }
 
   void createVertexBuffer() {
-    LOG("Vulkan Vertex Buffer Creation Successful");
+    LOG("Vulkan Vertex Buffer Creation Started");
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
     VkBuffer stagingBuffer;
@@ -1707,7 +1715,7 @@ class HelloTriangleApplication {
   }
 
   void createIndexBuffer() {
-    LOG("Vulkan Index Buffer Creation Successful");
+    LOG("Vulkan Index Buffer Creation Started");
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
     VkBuffer stagingBuffer;
@@ -1735,7 +1743,7 @@ class HelloTriangleApplication {
   }
 
   void createUniformBuffers() {
-    LOG("Vulkan Uniform Buffer Creation Successful");
+    LOG("Vulkan Uniform Buffer Creation Started");
 
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -1750,6 +1758,71 @@ class HelloTriangleApplication {
     }
 
     LOG("Vulkan Uniform Buffer Creation Successful");
+  }
+
+  void createDescriptorPool() {
+    LOG("Vulkan Uniform Description Pool Creation Started");
+
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    poolInfo.maxSets = static_cast<uint32_t>(swapChainImages.size());
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create descriptor pool!");
+    }
+
+    LOG("Vulkan Uniform Description Pool Creation Successful");
+  }
+
+  void createDescriptorSets() {
+    LOG("Vulkan Uniform Description Set Creation Started");
+
+    std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(),
+                                               descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount =
+        static_cast<uint32_t>(swapChainImages.size());
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(swapChainImages.size());
+    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    for (size_t i = 0; i < swapChainImages.size(); i++) {
+      VkDescriptorBufferInfo bufferInfo = {};
+      bufferInfo.buffer = uniformBuffers[i];
+      bufferInfo.offset = 0;
+      bufferInfo.range = sizeof(UniformBufferObject);
+
+      VkWriteDescriptorSet descriptorWrite = {};
+      descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      descriptorWrite.dstSet = descriptorSets[i];
+      descriptorWrite.dstBinding = 0;
+      descriptorWrite.dstArrayElement = 0;
+
+      descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+      descriptorWrite.descriptorCount = 1;
+
+      descriptorWrite.pBufferInfo = &bufferInfo;
+      descriptorWrite.pImageInfo = nullptr;        // Optional
+      descriptorWrite.pTexelBufferView = nullptr;  // Optional
+
+      vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    }
+
+    LOG("Vulkan Uniform Description Set Creation Successful");
   }
 
   void cleanupSwapChain() {
@@ -1818,6 +1891,8 @@ class HelloTriangleApplication {
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
 
@@ -1938,6 +2013,8 @@ class HelloTriangleApplication {
     LOG("Cleanup Started");
 
     cleanupSwapChain();
+
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
