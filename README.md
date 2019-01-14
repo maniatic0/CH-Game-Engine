@@ -4,11 +4,12 @@ Game Engine Project based on Game Engine Architecture book by Jason Gregory
 
 ## Requires
 
-* CMake
-* Clang 7.0.1 (it was made with this compiler in mind and probably only tested on Windows)
-* GLFW (automatic install)
-* GLM (automatic install)
-* Vulkan and LunarG Vulkan Tools
+- CMake
+- Clang 7.0.1 (it was made with this compiler in mind and probably only tested on Windows)
+- GLFW (automatic install)
+- GLM (automatic install)
+- STB (automatic install)
+- Vulkan and LunarG Vulkan Tools
 
 ## Windows Build
 
