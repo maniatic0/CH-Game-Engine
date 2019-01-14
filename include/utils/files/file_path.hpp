@@ -12,7 +12,11 @@ namespace utils {
 
 std::string getRuntimeFolder();
 
-void setRuntimeFolder(const char *path);
-}  // namespace utils
+std::string fixRelativePath(const char *path);
 
-#endif  // FILE_PATH_HEADER_GUARD
+std::string fixRelativePath(std::string path);
+
+void setRuntimeFolder(const char *path);
+} // namespace utils
+
+#endif // FILE_PATH_HEADER_GUARD

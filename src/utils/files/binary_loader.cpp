@@ -16,7 +16,7 @@ std::vector<char> readFile(const std::string &filename,
   // std::ios::ate makes us read from end to start of file. It gives us the size
   // at the start
   std::ifstream file(
-      (!use_absolute_path ? utils::getRuntimeFolder() : "") + filename,
+      !use_absolute_path ? utils::fixRelativePath(filename) : filename,
       std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
