@@ -139,6 +139,42 @@ set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
 
 include_directories(${GLM_INCLUDE_LOCATION})
 
+# STB 
+set(STB_LOCATION ${EXTERNAL_INSTALL_LOCATION}/STB)
+set(STB_INCLUDE_PRE_LOCATION ${STB_LOCATION}/src/stb-lib)
+set(STB_INCLUDE_LOCATION ${STB_LOCATION}/include)
+ExternalProject_Add (
+	  stb-lib
+	  PREFIX ${STB_LOCATION}
+      GIT_REPOSITORY "https://github.com/nothings/stb.git"
+      GIT_TAG "master"
+      #UPDATE_COMMAND "" # Uncomment to stop git pull
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
+      CMAKE_GENERATOR ${CMAKE_GENERATOR}
+      CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
+      CMAKE_ARGS 
+    	-DCMAKE_INSTALL_PREFIX=${STB_LOCATION}
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      )
+
+# See: https://stackoverflow.com/questions/41384447/clean-copied-files-from-external-project
+# See: https://cmake.org/cmake/help/v3.0/module/ExternalProject.html
+ExternalProject_Add_Step(
+    stb-lib stb-copy2include
+    COMMENT "Copying STB to include folder"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${STB_INCLUDE_PRE_LOCATION} ${STB_INCLUDE_LOCATION}
+    # See: https://stackoverflow.com/questions/41089289/externalproject-add-step-error-add-custom-command-given-append-option-with-outpu
+    DEPENDEES download
+)
+
+set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    "${STB_INCLUDE_LOCATION}"
+)
+
+include_directories(${STB_INCLUDE_LOCATION})
+
 # Vulkan
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
@@ -161,6 +197,7 @@ set_target_properties(CH_ENGINE PROPERTIES
 
 add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
+add_dependencies(CH_ENGINE stb-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
 target_link_libraries(CH_ENGINE PUBLIC ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}$<$<BOOL:isMultiConfig>:/$<CONFIG>>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -171,6 +208,7 @@ target_include_directories(CH_ENGINE
         ${Vulkan_INCLUDE_DIRS}
         ${GLFW_INCLUDE_LOCATION}
         ${GLM_INCLUDE_LOCATION}
+        ${STB_INCLUDE_LOCATION}
 )
 
 
