@@ -2,10 +2,13 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -18,6 +21,14 @@
 #include <utils/debug/log.hpp>
 #include <utils/files/binary_loader.hpp>
 #include <utils/files/file_path.hpp>
+
+// TODO: Move to other File
+// Camera Uniforms
+struct UniformBufferObject {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 proj;
+};
 
 // TODO: Move Vertex Config to new file
 // Vertex Config
@@ -165,6 +176,7 @@ class HelloTriangleApplication {
 
   VkRenderPass renderPass;
 
+  VkDescriptorSetLayout descriptorSetLayout;
   VkPipelineLayout pipelineLayout;
   VkPipeline graphicsPipeline;
 
@@ -189,6 +201,10 @@ class HelloTriangleApplication {
   // Index Buffer
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
+
+  // Uniform Buffers
+  std::vector<VkBuffer> uniformBuffers;
+  std::vector<VkDeviceMemory> uniformBuffersMemory;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -1006,6 +1022,47 @@ class HelloTriangleApplication {
     LOG("Vulkan Render Pass Successful");
   }
 
+  void createDescriptorSetLayout() {
+    LOG("Vulkan Description Set Layout Creation Started");
+
+    /*
+     * The first two fields specify the binding used in the shader and the type
+     * of descriptor, which is a uniform buffer object. It is possible for the
+     * shader variable to represent an array of uniform buffer objects, and
+     * descriptorCount specifies the number of values in the array. This could
+     * be used to specify a transformation for each of the bones in a skeleton
+     * for skeletal animation, for example. Our MVP transformation is in a
+     * single uniform buffer object, so we're using a descriptorCount of 1.
+     */
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+
+    /*
+     * We also need to specify in which shader stages the descriptor is going to
+     * be referenced. The stageFlags field can be a combination of
+     * VkShaderStageFlagBits values or the value VK_SHADER_STAGE_ALL_GRAPHICS.
+     * In our case, we're only referencing the descriptor from the vertex
+     * shader.
+     */
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional, for images
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr,
+                                    &descriptorSetLayout) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    LOG("Vulkan Description Set Layout Creation Successful");
+  }
+
   void createGraphicsPipeline() {
     LOG("Vulkan Graphics Pipeline Creation Started");
     auto vertShaderCode = utils::readFile("/shaders/triangle.vert.glsl.spv");
@@ -1227,8 +1284,9 @@ class HelloTriangleApplication {
     // chapter.
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;             // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr;          // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;  // Optional
+    pipelineLayoutInfo.pSetLayouts =
+        &descriptorSetLayout;                          // Optional, Uniforms
     pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
 
@@ -1468,10 +1526,13 @@ class HelloTriangleApplication {
       VkDeviceSize offsets[] = {0};
       vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-      vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0,
-                           VK_INDEX_TYPE_UINT16); // VK_INDEX_TYPE_UINT16 because we are using uint_16
+      vkCmdBindIndexBuffer(
+          commandBuffers[i], indexBuffer, 0,
+          VK_INDEX_TYPE_UINT16);  // VK_INDEX_TYPE_UINT16 because we are using
+                                  // uint_16
 
-      vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+      vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()),
+                       1, 0, 0, 0);
 
       vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1673,6 +1734,24 @@ class HelloTriangleApplication {
     LOG("Vulkan Index Buffer Creation Successful");
   }
 
+  void createUniformBuffers() {
+    LOG("Vulkan Uniform Buffer Creation Successful");
+
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    uniformBuffers.resize(swapChainImages.size());
+    uniformBuffersMemory.resize(swapChainImages.size());
+
+    for (size_t i = 0; i < swapChainImages.size(); i++) {
+      createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                   uniformBuffers[i], uniformBuffersMemory[i]);
+    }
+
+    LOG("Vulkan Uniform Buffer Creation Successful");
+  }
+
   void cleanupSwapChain() {
     LOG("Vulkan SwapChain Cleanup Started");
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
@@ -1732,11 +1811,13 @@ class HelloTriangleApplication {
     createSwapChain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
     createCommandBuffers();
     createSyncObjects();
 
@@ -1773,6 +1854,8 @@ class HelloTriangleApplication {
       // Check
       throw std::runtime_error("failed to acquire swap chain image!");
     }
+
+    updateUniformBuffer(imageIndex);
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1824,10 +1907,44 @@ class HelloTriangleApplication {
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
   }
 
+  void updateUniformBuffer(uint32_t currentImage) {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(
+                     currentTime - startTime)
+                     .count();
+
+    UniformBufferObject ubo = {};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),
+                            glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view =
+        glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                    glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(
+        glm::radians(45.0f),
+        swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;  // In Vulkan the Y axis is upside down compared to
+                           // OpenGL, so We Fix it
+
+    void *data;
+    vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0,
+                &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
+  }
+
   void cleanup() {
     LOG("Cleanup Started");
 
     cleanupSwapChain();
+
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
+    for (size_t i = 0; i < swapChainImages.size(); i++) {
+      vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+      vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+    }
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
