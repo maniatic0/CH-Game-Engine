@@ -146,6 +146,16 @@ struct SwapChainSupportDetails {
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+struct CommandPoolFamily {
+  VkCommandPool commandPool;
+  VkQueue queue;
+};
+
+struct CommandBufferFamily {
+  VkCommandBuffer commandBuffer;
+  CommandPoolFamily *commandPoolFamily;
+};
+
 class HelloTriangleApplication {
  public:
   void run() {
@@ -186,8 +196,8 @@ class HelloTriangleApplication {
 
   std::vector<VkFramebuffer> swapChainFramebuffers;
 
-  VkCommandPool commandPool;
-  VkCommandPool transferCommandPool;
+  CommandPoolFamily graphicsCommandPool;
+  CommandPoolFamily transferCommandPool;
   std::vector<VkCommandBuffer> commandBuffers;
 
   // Drawing
@@ -212,6 +222,10 @@ class HelloTriangleApplication {
 
   VkDescriptorPool descriptorPool;
   std::vector<VkDescriptorSet> descriptorSets;
+
+  // Image
+  VkImage textureImage;
+  VkDeviceMemory textureImageMemory;
 
   void initWindow() {
     LOG("Window Init Started");
@@ -1408,6 +1422,7 @@ class HelloTriangleApplication {
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    graphicsCommandPool.queue = graphicsQueue;
 
     /*
     There are two possible flags for command pools:
@@ -1420,13 +1435,14 @@ class HelloTriangleApplication {
     */
     poolInfo.flags = 0;  // Optional
 
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) !=
-        VK_SUCCESS) {
+    if (vkCreateCommandPool(device, &poolInfo, nullptr,
+                            &graphicsCommandPool.commandPool) != VK_SUCCESS) {
       throw std::runtime_error("failed to create command pool!");
     }
 
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+    transferCommandPool.queue = transferQueue;
 
     /*
     There are two possible flags for command pools:
@@ -1439,8 +1455,8 @@ class HelloTriangleApplication {
     */
     poolInfo.flags = 0;  // Optional
 
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &transferCommandPool) !=
-        VK_SUCCESS) {
+    if (vkCreateCommandPool(device, &poolInfo, nullptr,
+                            &transferCommandPool.commandPool) != VK_SUCCESS) {
       throw std::runtime_error("failed to create command pool!");
     }
 
@@ -1454,7 +1470,7 @@ class HelloTriangleApplication {
 
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = graphicsCommandPool.commandPool;
     /*
     The level parameter specifies if the allocated command buffers are primary
     or secondary command buffers.
@@ -1610,7 +1626,164 @@ class HelloTriangleApplication {
     throw std::runtime_error("failed to find suitable memory type!");
   }
 
+  void createImage(uint32_t width, uint32_t height, VkFormat format,
+                   VkImageTiling tiling, VkImageUsageFlags usage,
+                   VkMemoryPropertyFlags properties, VkImage &image,
+                   VkDeviceMemory &imageMemory) {
+    LOG("Vulkan Image Creation Started");
+    VkImageCreateInfo imageInfo = {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
+                                     indices.transferFamily.value()};
+
+    if (indices.graphicsFamily != indices.transferFamily) {
+      imageInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+      imageInfo.queueFamilyIndexCount = 2;
+      imageInfo.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+      imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      imageInfo.queueFamilyIndexCount = 0;      // Optional
+      imageInfo.pQueueFamilyIndices = nullptr;  // Optional
+    }
+
+    // imageInfo.sharingMode =
+    //    VK_SHARING_MODE_EXCLUSIVE;  // TODO: Check if this works with the
+    // transfer queue
+
+    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+        findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+    LOG("Vulkan Image Creation Successful");
+  }
+
+  void transitionImageLayout(VkImage image, VkFormat format,
+                             VkImageLayout oldLayout, VkImageLayout newLayout) {
+    CommandBufferFamily commandBufferFamily;
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+
+    // If you are using the barrier to transfer queue family ownership, then
+    // these two fields should be the indices of the queue families. They must
+    // be set to VK_QUEUE_FAMILY_IGNORED if you don't want to do this (not the
+    // default value!).
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+        newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+      commandBufferFamily = beginSingleTimeCommands(transferCommandPool);
+
+      barrier.srcAccessMask = 0;
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+      sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+               newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+      commandBufferFamily = beginSingleTimeCommands(graphicsCommandPool);
+
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+      sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+      VkMemoryBarrier memoryBarrier = {};
+      memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+      memoryBarrier.srcAccessMask = barrier.srcAccessMask;
+      memoryBarrier.dstAccessMask = barrier.dstAccessMask;
+
+      vkCmdPipelineBarrier(commandBufferFamily.commandBuffer,
+                           sourceStage,       // srcStageMask
+                           destinationStage,  // dstStageMask
+                           0,                 // dependency flags
+                           1,                 // memoryBarrierCount
+                           &memoryBarrier,    // pMemoryBarriers
+                           0,                 // Buffer Barrier Count
+                           nullptr,           // Buffer Barrier
+                           0,                 // Image Barrier Count
+                           nullptr            // Image Barrier
+      );
+
+    } else {
+      throw std::invalid_argument("unsupported layout transition!");
+    }
+
+    vkCmdPipelineBarrier(commandBufferFamily.commandBuffer, sourceStage,
+                         destinationStage, 0, 0, nullptr, 0, nullptr, 1,
+                         &barrier);
+
+    endSingleTimeCommands(commandBufferFamily);
+  }
+
+  void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
+                         uint32_t height) {
+    CommandBufferFamily commandBufferFamily =
+        beginSingleTimeCommands(transferCommandPool);
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {width, height, 1};
+
+    vkCmdCopyBufferToImage(commandBufferFamily.commandBuffer, buffer, image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    endSingleTimeCommands(commandBufferFamily);
+  }
+
   void createTextureImage() {
+    LOG("Vulkan Texture Loading Started");
     int texWidth, texHeight, texChannels;
     stbi_uc *pixels =
         stbi_load(utils::fixRelativeAssetPath("textures/texture.jpg").c_str(),
@@ -1620,6 +1793,39 @@ class HelloTriangleApplication {
     if (!pixels) {
       throw std::runtime_error("failed to load texture image!");
     }
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+    void *data;
+    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    stbi_image_free(pixels);
+
+    createImage(
+        texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM,
+                          VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, textureImage,
+                      static_cast<uint32_t>(texWidth),
+                      static_cast<uint32_t>(texHeight));
+    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+    LOG("Vulkan Texture Loading Successful");
   }
 
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -1665,40 +1871,59 @@ class HelloTriangleApplication {
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
   }
 
-  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+  CommandBufferFamily beginSingleTimeCommands(
+      CommandPoolFamily &commandPoolFamily) {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    // allocInfo.commandPool = commandPool;
-    allocInfo.commandPool = transferCommandPool;
+    // allocInfo.commandPool = graphicsCommandPool.commandPool;
+    // allocInfo.commandPool = transferCommandPool.commandPool;
+    allocInfo.commandPool = commandPoolFamily.commandPool;
     allocInfo.commandBufferCount = 1;
 
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+    CommandBufferFamily commandBufferFamily;
+    commandBufferFamily.commandPoolFamily = &commandPoolFamily;
+    vkAllocateCommandBuffers(device, &allocInfo,
+                             &commandBufferFamily.commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    vkBeginCommandBuffer(commandBufferFamily.commandBuffer, &beginInfo);
+
+    return commandBufferFamily;
+  }
+
+  void endSingleTimeCommands(CommandBufferFamily &commandBufferFamily) {
+    vkEndCommandBuffer(commandBufferFamily.commandBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferFamily.commandBuffer;
+
+    vkQueueSubmit(commandBufferFamily.commandPoolFamily->queue, 1, &submitInfo,
+                  VK_NULL_HANDLE);
+    vkQueueWaitIdle(commandBufferFamily.commandPoolFamily->queue);
+
+    vkFreeCommandBuffers(device,
+                         commandBufferFamily.commandPoolFamily->commandPool, 1,
+                         &commandBufferFamily.commandBuffer);
+  }
+
+  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    CommandBufferFamily commandBufferFamily =
+        beginSingleTimeCommands(transferCommandPool);
 
     VkBufferCopy copyRegion = {};
     copyRegion.srcOffset = 0;  // Optional
     copyRegion.dstOffset = 0;  // Optional
     copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+    vkCmdCopyBuffer(commandBufferFamily.commandBuffer, srcBuffer, dstBuffer, 1,
+                    &copyRegion);
 
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(transferQueue);
-
-    vkFreeCommandBuffers(device, transferCommandPool, 1, &commandBuffer);
+    endSingleTimeCommands(commandBufferFamily);
   }
 
   void createVertexBuffer() {
@@ -1847,7 +2072,7 @@ class HelloTriangleApplication {
       vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
 
-    vkFreeCommandBuffers(device, commandPool,
+    vkFreeCommandBuffers(device, graphicsCommandPool.commandPool,
                          static_cast<uint32_t>(commandBuffers.size()),
                          commandBuffers.data());
 
@@ -2031,6 +2256,9 @@ class HelloTriangleApplication {
 
     cleanupSwapChain();
 
+    vkDestroyImage(device, textureImage, nullptr);
+    vkFreeMemory(device, textureImageMemory, nullptr);
+
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
@@ -2052,8 +2280,8 @@ class HelloTriangleApplication {
       vkDestroyFence(device, inFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(device, commandPool, nullptr);
-    vkDestroyCommandPool(device, transferCommandPool, nullptr);
+    vkDestroyCommandPool(device, graphicsCommandPool.commandPool, nullptr);
+    vkDestroyCommandPool(device, transferCommandPool.commandPool, nullptr);
 
     vkDestroyDevice(device, nullptr);
 
