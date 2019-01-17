@@ -46,3 +46,9 @@ gcc -v -E -x c++ - -v < nul
 clang++ -E -x c++ - -v < /dev/null
 g++ -E -x c++ - -v < /dev/null
 ```
+
+Use this command to get all the clang-cl macro dump. For other clang compiler check <http://nadeausoftware.com/articles/2011/12/c_c_tip_how_list_compiler_predefined_macros>
+
+```Batchfile
+clang-cl ... /d1PP /E > file.txt
+```
