@@ -9,6 +9,7 @@ Game Engine Project based on Game Engine Architecture book by Jason Gregory
 - GLFW (automatic install)
 - GLM (automatic install)
 - STB (automatic install)
+- tinyobjloader (automatic install)
 - Vulkan and LunarG Vulkan Tools
 
 ## Windows Build
