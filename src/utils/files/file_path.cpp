@@ -47,12 +47,13 @@ std::string fixRelativeAssetPath(const char *path) {
 void setRuntimeFolder(const char *path) {
   // See this for upath deprectation
   // https://stackoverflow.com/questions/54004000/why-is-stdfilesystemu8path-deprecated-in-c20
-  LOG("Getting Runtime Folder. Using: " << std::string(path));
+  LOG("Getting Runtime Folder. Using: %s\n", path);
   runtime_path = std::filesystem::u8path(path);
   assets_path = runtime_path.parent_path() / ASSETS_FOLDER_NAME;
-  LOG("Runtime Folder: " << runtime_path.parent_path().generic_string());
-  LOG("Runtime Name: " << runtime_path.filename().generic_string());
-  LOG("Assets Folder: " << assets_path.generic_string());
+  LOG("Runtime Folder: %s\n",
+      runtime_path.parent_path().generic_string().c_str());
+  LOG("Runtime Name: %s\n", runtime_path.filename().generic_string().c_str());
+  LOG("Assets Folder: %s\n", assets_path.generic_string().c_str());
 }
 
 } // namespace utils

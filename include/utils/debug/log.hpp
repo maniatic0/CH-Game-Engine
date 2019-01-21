@@ -9,40 +9,48 @@
 #ifdef NDEBUG
 
 // More Detailed Debug Message, Only defined if NDEBUG is not defined
-#define LONGLOG(message)
+#define LONGLOG(message, ...)
 
 // Short Debug Message, Only defined if NDEBUG is not defined
-#define LOG(message)
+#define LOG(message, ...)
 
 // Iterate More Detailed Debug Message, Only defined if NDEBUG is not defined
-#define FORLONGLOG(expression, message)
+#define FORLONGLOG(expression, message, ...)
 
 // Iterate Short Debug Message, Only defined if NDEBUG is not defined
-#define FORLOG(expression, message)
+#define FORLOG(expression, message, ...)
 
 #else  // !NDEBUG
 
-#include <iostream>
+#include <cstdio>
+
+// Macro to String Expansion
+// https://stackoverflow.com/questions/19343205/c-concatenating-file-and-line-macros
+#define STRING_1(x) #x
+#define STRING_2(x) STRING_1(x)
+#define STRING_3(x) STRING_2(x)
+
+// See this for VARIADIC trick
+// https://stackoverflow.com/questions/5891221/variadic-macros-with-zero-arguments
 
 // More Detailed Debug Message, Only defined if NDEBUG is not defined
-#define LONGLOG(message)                                             \
-  std::cout << "(" << __FILE__ << ":" << __LINE__ << ":" << __func__ \
-            << "): \n"                                               \
-            << message << std::endl
+#define LONGLOG(message, ...)                                      \
+  std::printf(__FILE__ ":" STRING_2(__LINE__) ":%s \n", __func__); \
+  std::printf(message, ##__VA_ARGS__)
 
 // Short Debug Message, Only defined if NDEBUG is not defined
-#define LOG(message) std::cout << message << std::endl
+#define LOG(message, ...) std::printf(message, ##__VA_ARGS__)
 
 // Iterate More Detailed Debug Message, Only defined if NDEBUG is not defined
-#define FORLONGLOG(expression, message) \
-  for (expression) {                    \
-    LONGLOG(message);                   \
+#define FORLONGLOG(expression, message, ...) \
+  for (expression) {                         \
+    LONGLOG(message, ##__VA_ARGS__);         \
   }
 
 // Iterate Short Debug Message, Only defined if NDEBUG is not defined
-#define FORLOG(expression, message) \
-  for (expression) {                \
-    LOG(message);                   \
+#define FORLOG(expression, message, ...) \
+  for (expression) {                     \
+    LOG(message, ##__VA_ARGS__);         \
   }
 
 #endif  // NDEBUG

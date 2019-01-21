@@ -4,9 +4,9 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -263,7 +263,7 @@ class HelloTriangleApplication {
   VkImageView depthImageView;
 
   void initWindow() {
-    LOG("Window Init Started");
+    LOG("Window Init Started\n");
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -273,7 +273,7 @@ class HelloTriangleApplication {
     // Arbitrary pointer, we use it to send the instance
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-    LOG("Window Init Successful");
+    LOG("Window Init Successful\n");
   }
 
   static void framebufferResizeCallback(GLFWwindow *window, int width,
@@ -318,8 +318,9 @@ class HelloTriangleApplication {
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
                                            extensions.data());
 
-    LOG("Vulkan available extensions:");
-    FORLOG(const auto &extension : extensions, "\t" << extension.extensionName);
+    LOG("Vulkan available extensions:\n");
+    FORLOG(const auto &extension
+           : extensions, "\t%s\n", extension.extensionName);
 
     // GLFW required Extensions
     uint32_t glfwExtensionCount = 0;
@@ -329,18 +330,18 @@ class HelloTriangleApplication {
     std::vector<const char *> reqExtensions(
         glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-    LOG("GLFW Required Vulkan extensions:");
-    FORLOG(int i = 0; i < glfwExtensionCount; i++, "\t" << glfwExtensions[i]);
+    LOG("GLFW Required Vulkan extensions:\n");
+    FORLOG(int i = 0; i < glfwExtensionCount; i++, "\t%s\n", glfwExtensions[i]);
 
     if (enableValidationLayers) {
       reqExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-      LOG("Validation Layers Required Vulkan extensions:");
-      LOG("\t" << VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+      LOG("Validation Layers Required Vulkan extensions:\n");
+      LOG("\t" VK_EXT_DEBUG_UTILS_EXTENSION_NAME "\n");
     }
 
     // Extension Check
-    LOG("Checking required Vulkan Extensions:");
+    LOG("Checking required Vulkan Extensions:\n");
 
     int maxSize = reqExtensions.size();
     std::vector<bool> extensionCheck(maxSize, false);
@@ -353,9 +354,9 @@ class HelloTriangleApplication {
           extensionCheck[extIter] = true;
           maxiter++;
 
-          LOG("\tFound: " << extension.extensionName);
+          LOG("\tFound: %s\n", extension.extensionName);
           if (maxiter == maxSize) {
-            LOG("All required Vulkan Extensions found!");
+            LOG("All required Vulkan Extensions found!\n");
             break;
           }
         }
@@ -382,7 +383,7 @@ class HelloTriangleApplication {
   void setupDebugCallback() {
     if (!enableValidationLayers) return;
 
-    LOG("Vulkan Debug Callback Init Started");
+    LOG("Vulkan Debug Callback Init Started\n");
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -400,7 +401,7 @@ class HelloTriangleApplication {
                                      &callback) != VK_SUCCESS) {
       throw std::runtime_error("failed to set up debug callback!");
     }
-    LOG("Vulkan Debug Callback Init Successful");
+    LOG("Vulkan Debug Callback Init Successful\n");
   }
 
   void createInstance() {
@@ -409,7 +410,7 @@ class HelloTriangleApplication {
           "validation layers requested, but not available!");
     }
 
-    LOG("Vulkan Instance Init Started");
+    LOG("Vulkan Instance Init Started\n");
 
     // VK Optional App Config
     VkApplicationInfo appInfo = {};
@@ -448,17 +449,17 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create instance!");
     }
 
-    LOG("Vulkan Instance Init Successful");
+    LOG("Vulkan Instance Init Successful\n");
   }
 
   void createSurface() {
-    LOG("Vulkan Surface Creation Started");
+    LOG("Vulkan Surface Creation Started\n");
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) !=
         VK_SUCCESS) {
       throw std::runtime_error("failed to create window surface!");
     }
 
-    LOG("Vulkan Surface Creation Successful");
+    LOG("Vulkan Surface Creation Successful\n");
   }
 
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -561,7 +562,7 @@ class HelloTriangleApplication {
 
     QueueFamilyIndices indices = findQueueFamilies(device);
 
-    LOG("\t" << deviceProperties.deviceName << " supported Extensions:");
+    LOG("\t%s supported Extensions:\n", deviceProperties.deviceName);
     bool extensionsSupported = checkDeviceExtensionSupport(device);
 
     bool swapChainAdequate = false;
@@ -586,14 +587,14 @@ class HelloTriangleApplication {
 
     QueueFamilyIndices indices = findQueueFamilies(device);
 
-    LOG("\t" << deviceProperties.deviceName << " supported Extensions:");
+    LOG("\t%s supported Extensions:\n", deviceProperties.deviceName);
     bool extensionsSupported = checkDeviceExtensionSupport(device);
 
     int score = 0;
 
     // Application can't function without the extensions we need
     if (!extensionsSupported) {
-      LOG("\t" << deviceProperties.deviceName << " score: " << 0);
+      LOG("\t%s score: %d\n", deviceProperties.deviceName, 0);
       return 0;
     }
 
@@ -603,34 +604,34 @@ class HelloTriangleApplication {
                              !swapChainSupport.presentModes.empty();
 
     if (!swapChainAdequate) {
-      LOG("\t" << deviceProperties.deviceName << " score: " << 0);
+      LOG("\t%s score: %d\n", deviceProperties.deviceName, 0);
       return 0;
     }
 
     // Application can't function without the queues we need
     if (!indices.isComplete()) {
-      LOG("\t" << deviceProperties.deviceName << " score: " << 0);
+      LOG("\t%s score: %d\n", deviceProperties.deviceName, 0);
       return 0;
     }
 
     // Application can't function without geometry shaders
     if (!deviceFeatures.geometryShader) {
-      LOG("\t" << deviceProperties.deviceName << " score: " << 0);
+      LOG("\t%s score: %d\n", deviceProperties.deviceName, 0);
       return 0;
     }
 
     // Discrete GPUs have a significant performance advantage
-    LOG("\t\tDiscrete GPU: "
-        << (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
-                ? "Found"
-                : "Not Found"));
+    LOG("\t\tDiscrete GPU: %s\n",
+        (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
+             ? "Found"
+             : "Not Found"));
     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
       score += 1000;
     }
 
     // Support for Anisotropy Samplers
-    LOG("\t\tSupport for Anisotropy Samplers: "
-        << (deviceFeatures.samplerAnisotropy ? "Found" : "Not Found"));
+    LOG("\t\tSupport for Anisotropy Samplers: %s\n",
+        (deviceFeatures.samplerAnisotropy ? "Found" : "Not Found"));
     if (deviceFeatures.samplerAnisotropy) {
       return 500;
     }
@@ -638,7 +639,7 @@ class HelloTriangleApplication {
     // Maximum possible size of textures affects graphics quality
     score += deviceProperties.limits.maxImageDimension2D;
 
-    LOG("\t" << deviceProperties.deviceName << " score: " << score);
+    LOG("\t%s score: %d\n", deviceProperties.deviceName, score);
     return score;
   }
 
@@ -655,7 +656,7 @@ class HelloTriangleApplication {
                                                        deviceExtensions.end());
 
     for (const auto &extension : availableExtensions) {
-      LOG("\t\t" << extension.extensionName);
+      LOG("\t\t%s\n", extension.extensionName);
       requiredExtensions.erase(extension.extensionName);
     }
 
@@ -663,7 +664,7 @@ class HelloTriangleApplication {
   }
 
   void pickPhysicalDevice() {
-    LOG("Vulkan Physical Device Selection Started");
+    LOG("Vulkan Physical Device Selection Started\n");
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -674,7 +675,7 @@ class HelloTriangleApplication {
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-    LOG("Rating Vulkan Physical Devices: ");
+    LOG("Rating Vulkan Physical Devices: \n");
 
     /* Only bool selection
     for (const auto &device : devices) {
@@ -703,11 +704,11 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to find a suitable GPU!");
     }
 
-    LOG("Vulkan Physical Device Selection Successful");
+    LOG("Vulkan Physical Device Selection Successful\n");
   }
 
   void createLogicalDevice() {
-    LOG("Vulkan Logical Device Creation Started");
+    LOG("Vulkan Logical Device Creation Started\n");
 
     // Logical Device Queue Create Info
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
@@ -748,9 +749,9 @@ class HelloTriangleApplication {
     createInfo.pEnabledFeatures = &deviceFeatures;
 
     // Required Extensions and Validation Layers
-    LOG("Logical and Physical Device Required Extensions");
-    FORLOG(auto &extension : deviceExtensions, "\t Found: " << extension);
-    LOG("All Logical and Physical Device Required Extensions Found");
+    LOG("Logical and Physical Device Required Extensions\n");
+    FORLOG(auto &extension : deviceExtensions, "\t Found: %s\n", extension);
+    LOG("All Logical and Physical Device Required Extensions Found\n");
     // This is true if we are here
 
     createInfo.enabledExtensionCount =
@@ -777,7 +778,7 @@ class HelloTriangleApplication {
     // Get Transfer Quere
     vkGetDeviceQueue(device, indices.transferFamily.value(), 0, &transferQueue);
 
-    LOG("Vulkan Logical Device Creation Successful");
+    LOG("Vulkan Logical Device Creation Successful\n");
   }
 
   VkSurfaceFormatKHR chooseSwapSurfaceFormat(
@@ -847,7 +848,7 @@ class HelloTriangleApplication {
   }
 
   void createSwapChain() {
-    LOG("Vulkan SwapChain Creation Started");
+    LOG("Vulkan SwapChain Creation Started\n");
     SwapChainSupportDetails swapChainSupport =
         querySwapChainSupport(physicalDevice);
 
@@ -943,7 +944,7 @@ class HelloTriangleApplication {
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
 
-    LOG("Vulkan SwapChain Creation Successful");
+    LOG("Vulkan SwapChain Creation Successful\n");
   }
 
   VkImageView createImageView(VkImage image, VkFormat format,
@@ -987,7 +988,7 @@ class HelloTriangleApplication {
   }
 
   void createImageViews() {
-    LOG("Vulkan Image View Creation Started");
+    LOG("Vulkan Image View Creation Started\n");
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); i++) {
@@ -995,7 +996,7 @@ class HelloTriangleApplication {
           swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    LOG("Vulkan Image View Creation Successful");
+    LOG("Vulkan Image View Creation Successful\n");
   }
 
   VkShaderModule createShaderModule(const std::vector<char> &code) {
@@ -1024,7 +1025,7 @@ class HelloTriangleApplication {
   }
 
   void createRenderPass() {
-    LOG("Vulkan Render Pass Started");
+    LOG("Vulkan Render Pass Started\n");
 
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = swapChainImageFormat;
@@ -1122,11 +1123,11 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create render pass!");
     }
 
-    LOG("Vulkan Render Pass Successful");
+    LOG("Vulkan Render Pass Successful\n");
   }
 
   void createDescriptorSetLayout() {
-    LOG("Vulkan Description Set Layout Creation Started");
+    LOG("Vulkan Description Set Layout Creation Started\n");
 
     /*
      * The first two fields specify the binding used in the shader and the type
@@ -1173,11 +1174,11 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create descriptor set layout!");
     }
 
-    LOG("Vulkan Description Set Layout Creation Successful");
+    LOG("Vulkan Description Set Layout Creation Successful\n");
   }
 
   void createGraphicsPipeline() {
-    LOG("Vulkan Graphics Pipeline Creation Started");
+    LOG("Vulkan Graphics Pipeline Creation Started\n");
     auto vertShaderCode = utils::readAssetFile("triangle.vert.glsl.spv", true);
     auto fragShaderCode = utils::readAssetFile("triangle.frag.glsl.spv", true);
 
@@ -1500,11 +1501,11 @@ class HelloTriangleApplication {
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
-    LOG("Vulkan Graphics Pipeline Creation Successful");
+    LOG("Vulkan Graphics Pipeline Creation Successful\n");
   }
 
   void createFramebuffers() {
-    LOG("Vulkan Frame Buffer Creation Started");
+    LOG("Vulkan Frame Buffer Creation Started\n");
 
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
@@ -1527,11 +1528,11 @@ class HelloTriangleApplication {
       }
     }
 
-    LOG("Vulkan Frame Buffer Creation Successful");
+    LOG("Vulkan Frame Buffer Creation Successful\n");
   }
 
   void createCommandPool() {
-    LOG("Vulkan Command Pool Creation Started");
+    LOG("Vulkan Command Pool Creation Started\n");
 
     QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
@@ -1576,11 +1577,11 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create command pool!");
     }
 
-    LOG("Vulkan Command Pool Creation Successful");
+    LOG("Vulkan Command Pool Creation Successful\n");
   }
 
   void createCommandBuffers() {
-    LOG("Vulkan Command Buffer Creation Started");
+    LOG("Vulkan Command Buffer Creation Started\n");
 
     commandBuffers.resize(swapChainFramebuffers.size());
 
@@ -1688,11 +1689,11 @@ class HelloTriangleApplication {
       }
     }
 
-    LOG("Vulkan Command Buffer Creation Successful");
+    LOG("Vulkan Command Buffer Creation Successful\n");
   }
 
   void createSyncObjects() {
-    LOG("Vulkan Sync Objects Creation Started");
+    LOG("Vulkan Sync Objects Creation Started\n");
 
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1716,7 +1717,7 @@ class HelloTriangleApplication {
       }
     }
 
-    LOG("Vulkan Sync Objects Creation Successful");
+    LOG("Vulkan Sync Objects Creation Successful\n");
   }
 
   // Get suitable memory type from physical device
@@ -1749,7 +1750,7 @@ class HelloTriangleApplication {
                    VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage &image,
                    VkDeviceMemory &imageMemory) {
-    LOG("Vulkan Image Creation Started");
+    LOG("Vulkan Image Creation Started\n");
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -1801,7 +1802,7 @@ class HelloTriangleApplication {
     }
 
     vkBindImageMemory(device, image, imageMemory, 0);
-    LOG("Vulkan Image Creation Successful");
+    LOG("Vulkan Image Creation Successful\n");
   }
 
   void transitionImageLayout(VkImage image, VkFormat format,
@@ -1949,7 +1950,7 @@ class HelloTriangleApplication {
   }
 
   void createDepthResources() {
-    LOG("Vulkan Depth Resources Creation Started");
+    LOG("Vulkan Depth Resources Creation Started\n");
     VkFormat depthFormat = findDepthFormat();
     createImage(
         swapChainExtent.width, swapChainExtent.height, depthFormat,
@@ -1961,11 +1962,11 @@ class HelloTriangleApplication {
 
     transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    LOG("Vulkan Depth Resources Creation Successful");
+    LOG("Vulkan Depth Resources Creation Successful\n");
   }
 
   void createTextureImage() {
-    LOG("Vulkan Texture Loading Started");
+    LOG("Vulkan Texture Loading Started\n");
     int texWidth, texHeight, texChannels;
     stbi_uc *pixels =
         stbi_load(utils::fixRelativeAssetPath(TEXTURE_PATH).c_str(), &texWidth,
@@ -2007,18 +2008,18 @@ class HelloTriangleApplication {
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-    LOG("Vulkan Texture Loading Successful");
+    LOG("Vulkan Texture Loading Successful\n");
   }
 
   void createTextureImageView() {
-    LOG("Vulkan Texture Image View Creation Started");
+    LOG("Vulkan Texture Image View Creation Started\n");
     textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM,
                                        VK_IMAGE_ASPECT_COLOR_BIT);
-    LOG("Vulkan Texture Image View Creation Successful");
+    LOG("Vulkan Texture Image View Creation Successful\n");
   }
 
   void createTextureSampler() {
-    LOG("Vulkan Texture Sampler Creation Started");
+    LOG("Vulkan Texture Sampler Creation Started\n");
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     // The magFilter and minFilter fields specify how to interpolate texels that
@@ -2083,7 +2084,7 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create texture sampler!");
     }
 
-    LOG("Vulkan Texture Sampler Creation Successful");
+    LOG("Vulkan Texture Sampler Creation Successful\n");
   }
 
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -2185,7 +2186,7 @@ class HelloTriangleApplication {
   }
 
   void loadModel() {
-    LOG("Model Loading Started");
+    LOG("Model Loading Started\n");
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -2242,11 +2243,11 @@ class HelloTriangleApplication {
       }
     }
 
-    LOG("Model Loading Successful");
+    LOG("Model Loading Successful\n");
   }
 
   void createVertexBuffer() {
-    LOG("Vulkan Vertex Buffer Creation Started");
+    LOG("Vulkan Vertex Buffer Creation Started\n");
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
     VkBuffer stagingBuffer;
@@ -2271,11 +2272,11 @@ class HelloTriangleApplication {
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
 
-    LOG("Vulkan Vertex Buffer Creation Successful");
+    LOG("Vulkan Vertex Buffer Creation Successful\n");
   }
 
   void createIndexBuffer() {
-    LOG("Vulkan Index Buffer Creation Started");
+    LOG("Vulkan Index Buffer Creation Started\n");
     VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
     VkBuffer stagingBuffer;
@@ -2299,11 +2300,11 @@ class HelloTriangleApplication {
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
-    LOG("Vulkan Index Buffer Creation Successful");
+    LOG("Vulkan Index Buffer Creation Successful\n");
   }
 
   void createUniformBuffers() {
-    LOG("Vulkan Uniform Buffer Creation Started");
+    LOG("Vulkan Uniform Buffer Creation Started\n");
 
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
@@ -2317,11 +2318,11 @@ class HelloTriangleApplication {
                    uniformBuffers[i], uniformBuffersMemory[i]);
     }
 
-    LOG("Vulkan Uniform Buffer Creation Successful");
+    LOG("Vulkan Uniform Buffer Creation Successful\n");
   }
 
   void createDescriptorPool() {
-    LOG("Vulkan Description Pool Creation Started");
+    LOG("Vulkan Description Pool Creation Started\n");
 
     std::array<VkDescriptorPoolSize, 2> poolSizes = {};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -2342,11 +2343,11 @@ class HelloTriangleApplication {
       throw std::runtime_error("failed to create descriptor pool!");
     }
 
-    LOG("Vulkan Description Pool Creation Successful");
+    LOG("Vulkan Description Pool Creation Successful\n");
   }
 
   void createDescriptorSets() {
-    LOG("Vulkan Uniform Description Set Creation Started");
+    LOG("Vulkan Uniform Description Set Creation Started\n");
 
     std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(),
                                                descriptorSetLayout);
@@ -2398,11 +2399,11 @@ class HelloTriangleApplication {
                              descriptorWrites.data(), 0, nullptr);
     }
 
-    LOG("Vulkan Uniform Description Set Creation Successful");
+    LOG("Vulkan Uniform Description Set Creation Successful\n");
   }
 
   void cleanupSwapChain() {
-    LOG("Vulkan SwapChain Cleanup Started");
+    LOG("Vulkan SwapChain Cleanup Started\n");
 
     vkDestroyImageView(device, depthImageView, nullptr);
     vkDestroyImage(device, depthImage, nullptr);
@@ -2426,11 +2427,11 @@ class HelloTriangleApplication {
 
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 
-    LOG("Vulkan SwapChain Cleanup Successful");
+    LOG("Vulkan SwapChain Cleanup Successful\n");
   }
 
   void recreateSwapChain() {
-    LOG("Vulkan SwapChain Recreation Started");
+    LOG("Vulkan SwapChain Recreation Started\n");
 
     // Handle Window Minimization by busy wait until we are out of the
     // background again
@@ -2452,11 +2453,11 @@ class HelloTriangleApplication {
     createFramebuffers();
     createCommandBuffers();
 
-    LOG("Vulkan SwapChain Recreation Successful");
+    LOG("Vulkan SwapChain Recreation Successful\n");
   }
 
   void initVulkan() {
-    LOG("Vulkan Init Started");
+    LOG("Vulkan Init Started\n");
 
     createInstance();
     setupDebugCallback();
@@ -2483,17 +2484,17 @@ class HelloTriangleApplication {
     createCommandBuffers();
     createSyncObjects();
 
-    LOG("Vulkan Init Successful");
+    LOG("Vulkan Init Successful\n");
   }
 
   void mainLoop() {
-    LOG("Main Loop Started");
+    LOG("Main Loop Started\n");
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
       drawFrame();
     }
     vkDeviceWaitIdle(device);
-    LOG("Main Loop Finished");
+    LOG("Main Loop Finished\n");
   }
 
   void drawFrame() {
@@ -2597,7 +2598,7 @@ class HelloTriangleApplication {
   }
 
   void cleanup() {
-    LOG("Cleanup Started");
+    LOG("Cleanup Started\n");
 
     cleanupSwapChain();
 
@@ -2645,25 +2646,23 @@ class HelloTriangleApplication {
 
     glfwTerminate();
 
-    LOG("Cleanup Successful");
+    LOG("Cleanup Successful\n");
   }
 };
 
 int main(int argc, char *argv[]) {
-  LONGLOG("NDEBUG MACRO NOT DEFINED");
+  LONGLOG("NDEBUG MACRO NOT DEFINED\n");
 
-  LONGLOG("LONG "
-          << "LOG Test");
-  LOG("LOG"
-      << " test");
+  LONGLOG("LONG %s\n", "LOG Test");
+  LOG("LOG%s\n", " test");
 
   if (argc < 1) {
     throw std::runtime_error("failed get runtime location!");
   }
   utils::setRuntimeFolder(argv[0]);
 
-  FORLOG(int i = 0; i < 2; i++, "\t " << i);
-  FORLONGLOG(int i = 0; i < 2; i++, "\t " << i);
+  FORLOG(int i = 0; i < 2; i++, "\t%d\n", i);
+  FORLONGLOG(int i = 0; i < 2; i++, "\t%d\n", i);
 
   HelloTriangleApplication app;
 
