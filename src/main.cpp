@@ -27,10 +27,11 @@
 #include <stdexcept>
 #include <unordered_set>
 
-#include <utils/files/files_config.h>
 #include <utils/debug/log.hpp>
 #include <utils/files/binary_loader.hpp>
 #include <utils/files/file_path.hpp>
+#include <utils/files/files_config.h>
+
 
 // TODO: Move to other File
 // Camera Uniforms
@@ -98,8 +99,7 @@ struct Vertex {
 };
 
 namespace std {
-template <>
-struct hash<Vertex> {
+template <> struct hash<Vertex> {
   size_t operator()(Vertex const &vertex) const {
     return ((hash<glm::vec3>()(vertex.pos) ^
              (hash<glm::vec3>()(vertex.color) << 1)) >>
@@ -107,7 +107,7 @@ struct hash<Vertex> {
            (hash<glm::vec2>()(vertex.texCoord) << 1);
   }
 };
-}  // namespace std
+} // namespace std
 
 // GLFW Config
 const int WIDTH = 800;
@@ -145,9 +145,9 @@ const std::vector<const char *> validationLayers = {
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
-#else   // !NDEBUG
+#else  // !NDEBUG
 const bool enableValidationLayers = true;
-#endif  // NDEBUG
+#endif // NDEBUG
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -182,7 +182,7 @@ struct CommandBufferFamily {
 };
 
 class HelloTriangleApplication {
- public:
+public:
   void run() {
     initWindow();
     initVulkan();
@@ -190,7 +190,7 @@ class HelloTriangleApplication {
     cleanup();
   }
 
- private:
+private:
   // GLFW Config
   GLFWwindow *window;
 
@@ -381,7 +381,8 @@ class HelloTriangleApplication {
   }
 
   void setupDebugCallback() {
-    if (!enableValidationLayers) return;
+    if (!enableValidationLayers)
+      return;
 
     LOG("Vulkan Debug Callback Init Started\n");
 
@@ -395,7 +396,7 @@ class HelloTriangleApplication {
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
-    createInfo.pUserData = nullptr;  // Optional
+    createInfo.pUserData = nullptr; // Optional
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &callback) != VK_SUCCESS) {
@@ -902,8 +903,8 @@ class HelloTriangleApplication {
       createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0;      // Optional
-      createInfo.pQueueFamilyIndices = nullptr;  // Optional
+      createInfo.queueFamilyIndexCount = 0;     // Optional
+      createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     // If we want transforms like 90 degrees rotation. Current tranform to apply
@@ -1152,7 +1153,7 @@ class HelloTriangleApplication {
      */
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional, for images
+    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional, for images
 
     VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
     samplerLayoutBinding.binding = 1;
@@ -1249,7 +1250,7 @@ class HelloTriangleApplication {
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable =
-        VK_FALSE;  // Same vertex used by two triangles for example
+        VK_FALSE; // Same vertex used by two triangles for example
 
     // Viewport size (normally all the window but it could be different)
     VkViewport viewport = {};
@@ -1257,8 +1258,8 @@ class HelloTriangleApplication {
     viewport.y = 0.0f;
     viewport.width = (float)swapChainExtent.width;
     viewport.height = (float)swapChainExtent.height;
-    viewport.minDepth = 0.0f;  // Framebuffer depthbuffer
-    viewport.maxDepth = 1.0f;  // Framebuffer depthbuffer
+    viewport.minDepth = 0.0f; // Framebuffer depthbuffer
+    viewport.maxDepth = 1.0f; // Framebuffer depthbuffer
 
     // If we want to clip the framebuffer
     // It works by dropping pixels that fall outside of it in the rasterizer
@@ -1299,13 +1300,13 @@ class HelloTriangleApplication {
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     // rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.frontFace =
-        VK_FRONT_FACE_COUNTER_CLOCKWISE;  // OpenGL to Vulkan Fix
+        VK_FRONT_FACE_COUNTER_CLOCKWISE; // OpenGL to Vulkan Fix
 
     // Depth Bias (Sometimes used with ShadowMapping)
     rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;  // Optional
-    rasterizer.depthBiasClamp = 0.0f;           // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;     // Optional
+    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+    rasterizer.depthBiasClamp = 0.0f;          // Optional
+    rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
 
     // MSAA (disabled for now)
     VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -1313,10 +1314,10 @@ class HelloTriangleApplication {
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.0f;           // Optional
-    multisampling.pSampleMask = nullptr;             // Optional
-    multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
-    multisampling.alphaToOneEnable = VK_FALSE;       // Optional
+    multisampling.minSampleShading = 1.0f;          // Optional
+    multisampling.pSampleMask = nullptr;            // Optional
+    multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+    multisampling.alphaToOneEnable = VK_FALSE;      // Optional
 
     // If you are using a depth and/or stencil buffer, then you also need to
     // configure the depth and stencil tests using
@@ -1329,15 +1330,13 @@ class HelloTriangleApplication {
     colorBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;  // No blending
+    colorBlendAttachment.blendEnable = VK_FALSE; // No blending
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
-    colorBlendAttachment.dstColorBlendFactor =
-        VK_BLEND_FACTOR_ZERO;                                        // Optional
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;             // Optional
     colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
-    colorBlendAttachment.dstAlphaBlendFactor =
-        VK_BLEND_FACTOR_ZERO;                             // Optional
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;  // Optional
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;             // Optional
 
     // Alpha blending example
     // colorBlendAttachment.blendEnable = VK_TRUE;
@@ -1356,13 +1355,13 @@ class HelloTriangleApplication {
     colorBlending.sType =
         VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;  // Optional
+    colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f;  // Optional
-    colorBlending.blendConstants[1] = 0.0f;  // Optional
-    colorBlending.blendConstants[2] = 0.0f;  // Optional
-    colorBlending.blendConstants[3] = 0.0f;  // Optional
+    colorBlending.blendConstants[0] = 0.0f; // Optional
+    colorBlending.blendConstants[1] = 0.0f; // Optional
+    colorBlending.blendConstants[2] = 0.0f; // Optional
+    colorBlending.blendConstants[3] = 0.0f; // Optional
     // If you want to use the second method of blending (bitwise combination),
     // then you should set logicOpEnable to VK_TRUE. The bitwise operation can
     // then be specified in the logicOp field. Note that this will automatically
@@ -1400,11 +1399,10 @@ class HelloTriangleApplication {
     // chapter.
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;  // Optional
-    pipelineLayoutInfo.pSetLayouts =
-        &descriptorSetLayout;                          // Optional, Uniforms
-    pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;                 // Optional
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout; // Optional, Uniforms
+    pipelineLayoutInfo.pushConstantRangeCount = 0;         // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;      // Optional
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
                                &pipelineLayout) != VK_SUCCESS) {
@@ -1426,12 +1424,12 @@ class HelloTriangleApplication {
      * be using this functionality.
      */
     depthStencil.depthBoundsTestEnable = VK_FALSE;
-    depthStencil.minDepthBounds = 0.0f;  // Optional
-    depthStencil.maxDepthBounds = 1.0f;  // Optional
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
 
     depthStencil.stencilTestEnable = VK_FALSE;
-    depthStencil.front = {};  // Optional
-    depthStencil.back = {};   // Optional
+    depthStencil.front = {}; // Optional
+    depthStencil.back = {};  // Optional
 
     // We start by referencing the array of VkPipelineShaderStageCreateInfo
     // structs.
@@ -1449,7 +1447,7 @@ class HelloTriangleApplication {
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = nullptr;  // Optional
+    pipelineInfo.pDynamicState = nullptr; // Optional
 
     // After that comes the pipeline layout, which is a Vulkan handle rather
     // than a struct pointer.
@@ -1476,8 +1474,8 @@ class HelloTriangleApplication {
     // simply specify a null handle and an invalid index. These values are only
     // used if the VK_PIPELINE_CREATE_DERIVATIVE_BIT flag is also specified in
     // the flags field of VkGraphicsPipelineCreateInfo.
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
-    pipelineInfo.basePipelineIndex = -1;               // Optional
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex = -1;              // Optional
 
     // The vkCreateGraphicsPipelines function actually has more parameters than
     // the usual object creation functions in Vulkan. It is designed to take
@@ -1550,7 +1548,7 @@ class HelloTriangleApplication {
       buffers to be rerecorded individually, without this flag they all have
       to be reset together
     */
-    poolInfo.flags = 0;  // Optional
+    poolInfo.flags = 0; // Optional
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr,
                             &graphicsCommandPool.commandPool) != VK_SUCCESS) {
@@ -1570,7 +1568,7 @@ class HelloTriangleApplication {
       buffers to be rerecorded individually, without this flag they all have
       to be reset together
     */
-    poolInfo.flags = 0;  // Optional
+    poolInfo.flags = 0; // Optional
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr,
                             &transferCommandPool.commandPool) != VK_SUCCESS) {
@@ -1623,7 +1621,7 @@ class HelloTriangleApplication {
       // finished yet. The pInheritanceInfo parameter is only relevant for
       // secondary command buffers. It specifies which state to inherit from the
       // calling primary command buffers.
-      beginInfo.pInheritanceInfo = nullptr;  // Optional
+      beginInfo.pInheritanceInfo = nullptr; // Optional
 
       if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
@@ -1673,8 +1671,8 @@ class HelloTriangleApplication {
 
       vkCmdBindIndexBuffer(
           commandBuffers[i], indexBuffer, 0,
-          VK_INDEX_TYPE_UINT32);  // VK_INDEX_TYPE_UINT16 because we are using
-                                  // uint_16
+          VK_INDEX_TYPE_UINT32); // VK_INDEX_TYPE_UINT16 because we are using
+                                 // uint_16
 
       vkCmdBindDescriptorSets(commandBuffers[i],
                               VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
@@ -1775,8 +1773,8 @@ class HelloTriangleApplication {
       imageInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      imageInfo.queueFamilyIndexCount = 0;      // Optional
-      imageInfo.pQueueFamilyIndices = nullptr;  // Optional
+      imageInfo.queueFamilyIndexCount = 0;     // Optional
+      imageInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     // imageInfo.sharingMode =
@@ -1864,15 +1862,15 @@ class HelloTriangleApplication {
       memoryBarrier.dstAccessMask = barrier.dstAccessMask;
 
       vkCmdPipelineBarrier(commandBufferFamily.commandBuffer,
-                           sourceStage,       // srcStageMask
-                           destinationStage,  // dstStageMask
-                           0,                 // dependency flags
-                           1,                 // memoryBarrierCount
-                           &memoryBarrier,    // pMemoryBarriers
-                           0,                 // Buffer Barrier Count
-                           nullptr,           // Buffer Barrier
-                           0,                 // Image Barrier Count
-                           nullptr            // Image Barrier
+                           sourceStage,      // srcStageMask
+                           destinationStage, // dstStageMask
+                           0,                // dependency flags
+                           1,                // memoryBarrierCount
+                           &memoryBarrier,   // pMemoryBarriers
+                           0,                // Buffer Barrier Count
+                           nullptr,          // Buffer Barrier
+                           0,                // Image Barrier Count
+                           nullptr           // Image Barrier
       );
 
     } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
@@ -1937,11 +1935,11 @@ class HelloTriangleApplication {
   }
 
   VkFormat findDepthFormat() {
-    return findSupportedFormat(
-        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
-         VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    return findSupportedFormat({VK_FORMAT_D32_SFLOAT,
+                                VK_FORMAT_D32_SFLOAT_S8_UINT,
+                                VK_FORMAT_D24_UNORM_S8_UINT},
+                               VK_IMAGE_TILING_OPTIMAL,
+                               VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
   }
 
   bool hasStencilComponent(VkFormat format) {
@@ -2105,8 +2103,8 @@ class HelloTriangleApplication {
       bufferInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
       bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      bufferInfo.queueFamilyIndexCount = 0;      // Optional
-      bufferInfo.pQueueFamilyIndices = nullptr;  // Optional
+      bufferInfo.queueFamilyIndexCount = 0;     // Optional
+      bufferInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
@@ -2130,8 +2128,8 @@ class HelloTriangleApplication {
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
   }
 
-  CommandBufferFamily beginSingleTimeCommands(
-      CommandPoolFamily &commandPoolFamily) {
+  CommandBufferFamily
+  beginSingleTimeCommands(CommandPoolFamily &commandPoolFamily) {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -2176,8 +2174,8 @@ class HelloTriangleApplication {
         beginSingleTimeCommands(transferCommandPool);
 
     VkBufferCopy copyRegion = {};
-    copyRegion.srcOffset = 0;  // Optional
-    copyRegion.dstOffset = 0;  // Optional
+    copyRegion.srcOffset = 0; // Optional
+    copyRegion.dstOffset = 0; // Optional
     copyRegion.size = size;
     vkCmdCopyBuffer(commandBufferFamily.commandBuffer, srcBuffer, dstBuffer, 1,
                     &copyRegion);
@@ -2219,9 +2217,9 @@ class HelloTriangleApplication {
                            attrib.texcoords[2 * index.texcoord_index + 1]};
         */
 
-        vertex.texCoord = {
-            attrib.texcoords[2 * index.texcoord_index + 0],
-            1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+        vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
+                           1.0f -
+                               attrib.texcoords[2 * index.texcoord_index + 1]};
 
         vertex.color = {1.0f, 1.0f, 1.0f};
 
@@ -2555,7 +2553,7 @@ class HelloTriangleApplication {
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    presentInfo.pResults = nullptr;  // Optional
+    presentInfo.pResults = nullptr; // Optional
 
     result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
@@ -2587,8 +2585,8 @@ class HelloTriangleApplication {
     ubo.proj = glm::perspective(
         glm::radians(45.0f),
         swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;  // In Vulkan the Y axis is upside down compared to
-                           // OpenGL, so We Fix it
+    ubo.proj[1][1] *= -1; // In Vulkan the Y axis is upside down compared to
+                          // OpenGL, so We Fix it
 
     void *data;
     vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0,

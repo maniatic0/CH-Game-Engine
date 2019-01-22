@@ -1,6 +1,7 @@
 include(ExternalProject)
 
 cmake_minimum_required (VERSION 3.9.6)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if ( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
     message( FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt." )
@@ -25,6 +26,18 @@ if (isMultiConfig)
 else()
     set(propagate_build_type -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
 endif()
+
+# List Subdirs
+MACRO(SUBDIRLIST result curdir)
+  FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
+  SET(dirlist "")
+  FOREACH(child ${children})
+    IF(IS_DIRECTORY ${curdir}/${child})
+      LIST(APPEND dirlist ${child})
+    ENDIF()
+  ENDFOREACH()
+  SET(${result} ${dirlist})
+ENDMACRO()
 
 
 # Config
@@ -199,14 +212,77 @@ ExternalProject_Add (
         -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         ${propagate_build_type}
         -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
-      	-DLIB_SUFFIX=${TINYOBJLOADER_LIB_LOCATION} 
       	-DBUILD_SHARED_LIBS=ON 
-      	-DGLFW_BUILD_TESTS=OFF 
-      	-DGLFW_BUILD_EXAMPLES=OFF 
-      	-DGLFW_BUILD_DOCS=ON
       )
 
 include_directories(${TINYOBJLOADER_INCLUDE_LOCATION})
+
+
+# Boost 
+set(BOOST_LOCATION ${EXTERNAL_INSTALL_LOCATION}/BOOST)
+
+ExternalProject_Add (
+      boost-lib
+	  PREFIX ${BOOST_LOCATION}
+      GIT_REPOSITORY "https://github.com/boostorg/boost.git"
+      GIT_TAG "master"
+      CMAKE_GENERATOR ${CMAKE_GENERATOR}
+      CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
+      #UPDATE_COMMAND "" # Uncomment to stop git pull
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
+      CMAKE_GENERATOR ${CMAKE_GENERATOR}
+      CMAKE_GENERATOR_TOOLSET  ${CMAKE_GENERATOR_TOOLSET}
+      CMAKE_ARGS 
+    	-DCMAKE_INSTALL_PREFIX=${BOOST_LOCATION}
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    )
+
+# See https://foonathan.net/blog/2016/07/07/cmake-dependency-handling.html    
+# step 0
+find_path(BOOST_INCLUDE_LOCATION ${BOOST_LOCATION}/include)
+
+if((NOT BOOST_INCLUDE_LOCATION) OR (NOT EXISTS ${BOOST_INCLUDE_LOCATION}))
+    # we couldn't find the header files for FOO or they don't exist
+    message("Unable to find boost submodules")
+
+    find_package(Git)
+    set(BOOST_GIT_LOCATION ${BOOST_LOCATION}/src/boost-lib)
+    set(BOOST_LIBS_LOCATION ${BOOST_GIT_LOCATION}/libs)
+
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init
+                    WORKING_DIRECTORY ${BOOST_GIT_LOCATION})
+    
+    # we have a submodule setup for foo, assume it is under external/foo
+    # now we need to clone this submodule
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init
+                    WORKING_DIRECTORY ${BOOST_GIT_LOCATION})
+
+    # set FOO_INCLUDE_DIR properly
+    set(BOOST_INCLUDE_LOCATION ${BOOST_LOCATION}/include
+        CACHE PATH "Boost include directory")
+
+    # for convenience setup a target
+    add_library(boost-submodules-lib INTERFACE)
+
+    SUBDIRLIST(SUBDIRS ${BOOST_GIT_LOCATION}/libs)
+    
+    FOREACH(subdir ${SUBDIRS})
+        message("Copying ${BOOST_GIT_LOCATION}/${subdir}/include to ${BOOST_INCLUDE_LOCATION}")
+        file(COPY ${BOOST_LIBS_LOCATION}/${subdir}/include DESTINATION ${BOOST_INCLUDE_LOCATION})
+    ENDFOREACH()
+
+    target_include_directories(boost-submodules-lib INTERFACE ${BOOST_INCLUDE_LOCATION})
+else()
+    # see above, setup target as well
+    add_library(boost-submodules-lib INTERFACE)
+	target_include_directories(boost-submodules-lib INTERFACE ${BOOST_INCLUDE_LOCATION})
+endif()
+
+set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    "${BOOST_INCLUDE_LOCATION}"
+)
 
 # Vulkan
 find_package(Vulkan REQUIRED)
@@ -251,6 +327,8 @@ add_dependencies(CH_ENGINE glfw-lib)
 add_dependencies(CH_ENGINE glm-lib)
 add_dependencies(CH_ENGINE stb-lib)
 add_dependencies(CH_ENGINE tinyobjloader-lib)
+add_dependencies(CH_ENGINE boost-lib)
+add_dependencies(CH_ENGINE boost-submodules-lib)
 # See: https://stackoverflow.com/questions/2209929/linking-different-libraries-for-debug-and-release-builds-in-cmake-on-windows
 # See: https://stackoverflow.com/questions/43456982/cmake-what-is-the-difference-between-include-directories-versus-target-link
 target_link_libraries(CH_ENGINE PUBLIC ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}$<$<BOOL:isMultiConfig>:/$<CONFIG>>/${CMAKE_STATIC_LIBRARY_PREFIX}glfw3dll${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -263,8 +341,16 @@ target_include_directories(CH_ENGINE
         ${GLM_INCLUDE_LOCATION}
         ${STB_INCLUDE_LOCATION}
         ${TINYOBJLOADER_INCLUDE_LOCATION}
+        ${BOOST_INCLUDE_LOCATION}
 )
 
+# Boost Stacktrace required libs
+IF (WIN32)
+    set(LINK_LIBS ole32.lib dbgeng.lib )
+    target_link_libraries(CH_ENGINE PUBLIC ${LINK_LIBS})
+ELSE()
+    target_link_libraries(CH_ENGINE PUBLIC ${CMAKE_DL_LIBS})
+ENDIF()
 
 # From vhls : https://gist.github.com/vlsh/a0d191701cb48f157b05be7f74d79396
 # Added some little things for cross platform compatibility and optimizations
