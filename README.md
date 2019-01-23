@@ -52,3 +52,9 @@ Use this command to get all the clang-cl macro dump. For other clang compiler ch
 ```Batchfile
 clang-cl ... /d1PP /E > file.txt
 ```
+
+Use this command to get the clang(-cl) call graph. It requires a .dot graph processor
+
+```Batchfile
+clang(-cl) ... -Xclang -analyze -Xclang -analyzer-checker=debug.ViewCallGraph
+```
