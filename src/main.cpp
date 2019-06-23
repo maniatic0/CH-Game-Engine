@@ -364,7 +364,7 @@ private:
     }
 
     if (maxiter != maxSize) {
-      throw std::runtime_error("failed to get the required Vulkan extensions!");
+      throw std::runtime_error("Failed to get the required Vulkan extensions!");
     }
 
     return reqExtensions;
